@@ -10,148 +10,176 @@ import random
 import time
 from std_msgs.msg import String
 from multi_robot_sim.msg import RobotDeliveryAction, RobotDeliveryGoal, RobotDeliveryResult
+from multi_robots_security_system.msg import RobotPatrolAction, RobotPatrolGoal, RobotPatrolFeedback
 
 
-# define state Cozinha
-class Cozinha(smach.State):
+# define state Ocioso
+class Ocioso(smach.State):
     request = False
-    new_goal = MoveBaseGoal()
 
     def __init__(self):      
-        smach.State.__init__(self, outcomes=['entregarPedido'],
-                             output_keys=['goal'])
-       
+        smach.State.__init__(self, outcomes=['indoInvestigar', 'patrulhando'],
+                             output_keys=['goal'])        
+
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state Cozinha')
+        rospy.loginfo('Executing state Ocioso')
 
         while(True): 
             if(self.request):
                 self.request = False
-                
-                userdata.goal = self.new_goal
-
-                return 'entregarPedido'
+                if(mode == 'investigate'):
+                    userdata.pose = self.data
+                    return 'indoInvestigar'
+                elif(mode == 'patrol'):
+                    userdata.poses = self.data
+                    return 'patrulhando'
             else:
                 time.sleep(0.5)
 
-        else:
-            print('cheguei aqui')
-
-    def setGoal(self, pos_x, pos_y):
+    def goInvestigate(self, pose):
+        self.mode = 'investigate'
         self.request = True
-        self.new_goal.target_pose.header.frame_id = "map"
-        self.new_goal.target_pose.header.stamp = rospy.Time.now()
-        self.new_goal.target_pose.pose.position.x = pos_x
-        self.new_goal.target_pose.pose.position.y = pos_y
-        self.new_goal.target_pose.pose.orientation.w = 1
-        
+        self.data = pose
 
-    def getPos(self, data):
-        pos = data.data.split(',')
-        self.destino_x = int(pos[0])
-        self.destino_y = int(pos[1])
+    def startPatrol(self, poses):
+        self.mode = 'patrol'
         self.request = True
-        
+        self.data = poses
+               
 
-# define state RealizandoEntrega
-class RealizandoEntrega(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['chegouDestino','retornarCozinha'],
+# define state IndoInvestigar
+class IndoInvestigar(smach.State):
+    def __init__(self, robot):
+        smach.State.__init__(self, outcomes=['investigando', 'ocioso'],
                              input_keys=['goal'])
         self.move_base = actionlib.SimpleActionClient('robot2/move_base', MoveBaseAction)
+        self.new_goal = MoveBaseGoal()
+        self.robot = robot
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state RealizandoEntrega')
+        rospy.loginfo('Executing state IndoInvestigar')
+
+        self.new_goal.target_pose = userdata.pose
         
         self.move_base.wait_for_server()
 
-        self.move_base.send_goal(userdata.goal)
+        self.move_base.send_goal(self.new_goal)
 
         self.move_base.wait_for_result()
 
         state = self.move_base.get_state()
         if state == GoalStatus.SUCCEEDED:
-            return 'chegouDestino'
+            self.robot.setResult('investigando')
+            return 'investigando'
         else:
-            return 'retornarCozinha'
-        
+            self.robot.setResult('ocioso')
+            return 'ocioso'
 
         
 
 
-# define state Destino
-class Destino(smach.State):
+# define state Investigando
+class Investigando(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['retornarCozinha'])
+        smach.State.__init__(self, outcomes=['indoInvestigar', 'patrulhando', 'ocioso'])
+        self.stop = False
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state Destino')
-        time.sleep(5)
-        return 'retornarCozinha'
+        rospy.loginfo('Executing state Investigando')
         
+         while(True): 
+            if(self.stop):
+                self.stop = False
+                if(self.action == 'investigate'):
+                    userdata.pose = self.data
+                    return 'indoInvestigar'
+                elif(mode == 'patrol'):
+                    userdata.poses = self.data
+                    return 'patrulhando'
+                return 'ocioso'
+            else:
+                time.sleep(0.5)
 
-# define state RetornandoCozinha
-class RetornandoCozinha(smach.State):
-    def __init__(self, deliveryRobot):
-        smach.State.__init__(self, outcomes=['chegouCozinha', 'retornarCozinha', 'final'])
+        return 'retornarCozinha'
+    
+    def stopInvestigating(self, data, nextAction):
+        self.stop = True
+        self.data = data
+        self.action = nextAction
+
+# define state Patrulhando
+class Patrulhando(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['indoInvestigar', 'ocioso'])
         self.move_base = actionlib.SimpleActionClient('robot2/move_base', MoveBaseAction)
-        self.goal = MoveBaseGoal()
-        self.goal.target_pose.header.frame_id = "map"
-        self.goal.target_pose.header.stamp = rospy.Time.now()
-        self.goal.target_pose.pose.position.x = 1.5
-        self.goal.target_pose.pose.position.y = 21
-        self.goal.target_pose.pose.orientation.w = 1  
-        self.deliveryRobot = deliveryRobot  
+        self.new_goal = MoveBaseGoal()
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state RetornandoCozinha')
-
+        rospy.loginfo('Executing state Patrulhando')
+        
+        self.new_goal.target_pose = userdata.poses[userdata.index]
+        
         self.move_base.wait_for_server()
 
-        self.move_base.send_goal(self.goal)
+        self.move_base.send_goal(self.new_goal)
 
-        self.move_base.wait_for_result()    
+        self.move_base.wait_for_result()
 
         state = self.move_base.get_state()
-        msg = "Finalizado com status: " + str(state)   
-
         if state == GoalStatus.SUCCEEDED:
-            result = state
-            self.deliveryRobot.setResult(result)
-            return 'chegouCozinha'
+            userdata.index += 1
+            userdata.index = userdata.index % len(userdata.poses)
+            return 'patrulhando'
         else:
-            return 'retornarCozinha'
-        return 'final'
+            if self.action == 'investigate':
+                userdata.pose = self.data
+                return 'indoInvestigar'
+            self.robot.setResult('ocioso')
+            return 'ocioso'
+    
+    def stopPatrolling(self, data, nextAction):
+        self.move_base.cancel_all_goals()
+        self.data = data
+        self.action = nextAction
+        
 
-class DeliveryRobot():
-    waiting_result = True
-    robotDeliveryResult = RobotDeliveryResult()
+class RobotPatrol():
 
 
-    def __init__(self, stateCozinha):
-        self._as = actionlib.SimpleActionServer("robot2/robot_delivery", RobotDeliveryAction, execute_cb=self.send_coffe, auto_start = False)
-        self._as.start()
-        self.stateCozinha = stateCozinha
-        self.robotDeliveryResult.robot = 2  #robot2
+    def __init__(self, robotState):
+        self.patrolCoordinates = []
+        self.shouldMove = False
+        self.patrolActionServer = actionlib.SimpleActionServer("robot2/patrol", RobotPatrolAction, execute_cb=self.execute_patrol, auto_start = False)
+        self.patrolActionServer.start()
+        self.robotState = robotState
+        self.robotPatrolResult = RobotPatrolResult()
 
 
-    def send_coffe(self, goal):
-        self.stateCozinha.setGoal(goal.x,goal.y)
+    def execute_patrol(self, goal):
+        if(len(goal.patrol_poses.poses) > 0):
+            self.shouldMove = True
+            if(len(goal.patrol_poses.poses) == 1):
+                self.robotState.goInvestigate(goal.patrol_poses.poses[0])
+            else:
+                self.robotState.startPatrol(goal.patrol_poses.poses)
 
         while(True):
-            if not self.waiting_result:
-                self.waiting_result = True
-                self._as.set_succeeded(self.robotDeliveryResult)
+            if not self.shouldMove:
+                self.patrolActionServer.set_succeeded(self.robotPatrolResult)
                 return
             else:
                 time.sleep(0.5)
 
         
 
-    def setResult(self, result):
-        self.robotDeliveryResult.status = result
-        self.waiting_result = False
+    def setResult(self, status):
+        self.robotPatrolResult.status = status
+        self.shouldMove = False
+        return
+
+    def setInvestigating(self):
+        self.robotPatrolResult.status = 'investigating'
         return
 
        
@@ -162,25 +190,27 @@ def main():
     # Create a SMACH state machine
     sm = smach.StateMachine(outcomes=['FIM'])
 
-    stateCozinha = Cozinha()
-    deliveryRobot = DeliveryRobot(stateCozinha)
-    stateRetornandoCozinha = RetornandoCozinha(deliveryRobot)
+    availableState = Ocioso()
+    goingToInvestigateState = IndoInvestigar()
+    investigatingState = Investigando()
+    patrollingState = Patrulhando()
+    robot = RobotPatrol(availableState, goingToInvestigateState, investigatingState, patrollingState)
 
     # Open the container
     with sm:
         # Add states to the container
-        smach.StateMachine.add('COZINHA', stateCozinha, 
-                               transitions={'entregarPedido':'REALIZANDO_ENTREGA'})
+        smach.StateMachine.add('OCIOSO', availableState, 
+                               transitions={'indoInvestigar': 'INDO_INVESTIGAR', 'patrulhando': 'PATRULHANDO'})
 
-        smach.StateMachine.add('REALIZANDO_ENTREGA', RealizandoEntrega(), 
-                               transitions={'chegouDestino':'DESTINO', 'retornarCozinha':'RETORNANDO_COZINHA'},
+        smach.StateMachine.add('INDO_INVESTIGAR', goingToInvestigateState, 
+                               transitions={'investigando': 'INVESTIGANDO', 'ocioso': 'OCIOSO'},
                                remapping={'goal':'goal'})
 
-        smach.StateMachine.add('DESTINO', Destino(), 
-                               transitions={'retornarCozinha':'RETORNANDO_COZINHA'})
+        smach.StateMachine.add('INVESTIGANDO', investigatingState, 
+                               transitions={'indoInvestigar': 'INDO_INVESTIGAR', 'patrulhando': 'PATRULHANDO', 'ocioso': 'OCIOSO'})
 
-        smach.StateMachine.add('RETORNANDO_COZINHA', stateRetornandoCozinha, 
-                               transitions={'chegouCozinha':'COZINHA', 'retornarCozinha':'RETORNANDO_COZINHA', 'final':'FIM'})
+        smach.StateMachine.add('PATRULHANDO', patrollingState, 
+                               transitions={'indoInvestigar': 'INDO_INVESTIGAR', 'ocioso': 'OCIOSO'})
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('sm_robot2', sm, '/SM_ROBOT2')

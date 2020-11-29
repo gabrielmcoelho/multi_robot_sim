@@ -26,7 +26,7 @@ class RobotClientController(object):
       
     def execute_security_action(self, goal):
         print('execute callback on client controller!')
-        self.robots[goal.robotIndex].setGoal(goal.patrol_poses.poses)
+        self.robots[goal.robotIndex].setGoal(goal.patrol_poses)
         # # helper variables
         # r = rospy.Rate(1)
         # success = True
@@ -94,10 +94,10 @@ class RobotController(threading.Thread):
 
     def setGoal(self, poses):
         print('ele sabe que tem q enviar pro states :)')
-        if len(poses) > 0:
+        if len(poses.poses) > 0:
             self.robotPatrolGoal.patrol_poses = poses
             self.receive_goal = True
-            if(len(poses) == 1):
+            if(len(poses.poses) == 1):
                 robots_status[self.robot_number-1] = 'going to investigate'
             else:
                 robots_status[self.robot_number-1] = 'patrolling'
