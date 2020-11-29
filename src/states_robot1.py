@@ -175,27 +175,36 @@ class RobotPatrol():
     def execute_patrol(self, goal):
         success = True
         if(len(goal.patrol_poses.poses) > 0):
+            if(len(goal.patrol_poses.poses) == 1):
+                nextAction = 'investigate'
+            else:
+                nextAction = 'patrol'
+            rospy.loginfo('Robot 1 received a command')
+            rospy.loginfo('current status: %s', self.status)
+            rospy.loginfo('next action: %s', nextAction)
             if self.status == 'available':
                 self.shouldPatrol = True
-                if(len(goal.patrol_poses.poses) == 1):
+                if(nextAction == 'investigate'):
                     self.robotState.goInvestigate(goal.patrol_poses.poses[0])
                 else:
                     self.robotState.startPatrol(goal.patrol_poses.poses)
             elif self.status == 'going_to_investigate':
-                if(len(goal.patrol_poses.poses) == 1):
+                if(nextAction == 'investigate'):
                     self.patrollingState.cancelMovement(goal.patrol_poses.poses[0], 'investigate')
                 else:
                     self.patrollingState.cancelMovement(goal.patrol_poses.poses, 'patrol')
             elif self.status == 'investigating':
-                if(len(goal.patrol_poses.poses) == 1):
+                if(nextAction == 'investigate'):
                     self.patrollingState.stopInvestigating(goal.patrol_poses.poses[0], 'investigate')
                 else:
                     self.patrollingState.stopInvestigating(goal.patrol_poses.poses, 'patrol')
             elif self.status == 'patrolling':
-                if(len(goal.patrol_poses.poses) == 1):
+                if(nextAction == 'investigate'):
                     self.patrollingState.stopPatrolling(goal.patrol_poses.poses[0], 'investigate')
                 else:
                     rospy.loginfo('robot1 is already patrolling!')
+        else:
+            rospy.loginfo('pose array is invalid. Robot 1 will keep its activity')
 
         while(True):
             if not self.shouldPatrol:
@@ -204,6 +213,8 @@ class RobotPatrol():
                 return
             else:
                 if self.patrolActionServer.is_preempt_requested():
+                    rospy.loginfo('canceling activity for robot 1')
+                    rospy.loginfo('current status: %s', self.status)
                     if self.status == 'going_to_investigate':
                         self.patrollingState.cancelMovement(None, None)
                     elif self.status == 'investigating':
