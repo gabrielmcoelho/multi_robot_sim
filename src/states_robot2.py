@@ -73,8 +73,19 @@ class IndoInvestigar(smach.State):
             self.robot.setResult('investigando')
             return 'investigando'
         else:
+            if self.action == 'investigate':
+                userdata.pose = self.data
+                return 'indoInvestigar'
+            elif self.action == 'patrol':
+                userdata.poses = self.data
+                return 'patrulhando'
             self.robot.setResult('ocioso')
             return 'ocioso'
+    
+    def cancelMovement(self, data, nextAction):
+        self.move_base.cancel_all_goals()
+        self.data = data
+        self.action = nextAction
 
         
 
@@ -94,7 +105,7 @@ class Investigando(smach.State):
                 if(self.action == 'investigate'):
                     userdata.pose = self.data
                     return 'indoInvestigar'
-                elif(mode == 'patrol'):
+                elif(self.action == 'patrol'):
                     userdata.poses = self.data
                     return 'patrulhando'
                 return 'ocioso'
@@ -147,28 +158,61 @@ class Patrulhando(smach.State):
 class RobotPatrol():
 
 
-    def __init__(self, robotState):
+    def __init__(self, availableState, goingToInvestigateState, investigatingState, patrollingState):
+        self.status = 'available'
         self.patrolCoordinates = []
-        self.shouldMove = False
+        self.shouldPatrol = False
         self.patrolActionServer = actionlib.SimpleActionServer("robot2/patrol", RobotPatrolAction, execute_cb=self.execute_patrol, auto_start = False)
         self.patrolActionServer.start()
-        self.robotState = robotState
+        self.availableState = availableState
+        self.goingToInvestigateState = goingToInvestigateState
+        self.investigatingState = investigatingState
+        self.patrollingState = patrollingState
         self.robotPatrolResult = RobotPatrolResult()
 
 
     def execute_patrol(self, goal):
+        success = True
         if(len(goal.patrol_poses.poses) > 0):
-            self.shouldMove = True
-            if(len(goal.patrol_poses.poses) == 1):
-                self.robotState.goInvestigate(goal.patrol_poses.poses[0])
-            else:
-                self.robotState.startPatrol(goal.patrol_poses.poses)
+            if self.status == 'available':
+                self.shouldPatrol = True
+                if(len(goal.patrol_poses.poses) == 1):
+                    self.robotState.goInvestigate(goal.patrol_poses.poses[0])
+                else:
+                    self.robotState.startPatrol(goal.patrol_poses.poses)
+            elif self.status == 'going_to_investigate':
+                if(len(goal.patrol_poses.poses) == 1):
+                    self.patrollingState.cancelMovement(goal.patrol_poses.poses[0], 'investigate')
+                else:
+                    self.patrollingState.cancelMovement(goal.patrol_poses.poses, 'patrol')
+            elif self.status == 'investigating':
+                if(len(goal.patrol_poses.poses) == 1):
+                    self.patrollingState.stopInvestigating(goal.patrol_poses.poses[0], 'investigate')
+                else:
+                    self.patrollingState.stopInvestigating(goal.patrol_poses.poses, 'patrol')
+            elif self.status == 'patrolling':
+                if(len(goal.patrol_poses.poses) == 1):
+                    self.patrollingState.stopPatrolling(goal.patrol_poses.poses[0], 'investigate')
+                else:
+                    rospy.loginfo('robot2 is already patrolling!')
 
         while(True):
-            if not self.shouldMove:
-                self.patrolActionServer.set_succeeded(self.robotPatrolResult)
+            if not self.shouldPatrol:
+                if success:
+                    self.patrolActionServer.set_succeeded(self.robotPatrolResult)
                 return
             else:
+                if self.patrolActionServer.is_preempt_requested():
+                    if self.status == 'going_to_investigate':
+                        self.patrollingState.cancelMovement(None, None)
+                    elif self.status == 'investigating':
+                        self.patrollingState.stopInvestigating(None, None)
+                    elif self.status == 'patrolling':
+                        self.patrollingState.stopPatrolling(None, None)
+                    rospy.loginfo('robot2/patrol Preempted')
+                    success = False
+                    self.shouldPatrol = False
+                    self.patrolActionServer.set_preempted()
                 time.sleep(0.5)
 
         
