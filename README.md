@@ -48,7 +48,7 @@ Os seguintes passos devem ser seguidos para configurar o ambiente e executar o p
 
 2º - Servidor ROS:
 
-	$ rosrun multi_robots_security_system productor_consumer.py
+	$ rosrun multi_robots_security_system security_system.py
 
 3º - Máquinas de estado dos robôs:
 
@@ -64,5 +64,5 @@ Os seguintes passos devem ser seguidos para configurar o ambiente e executar o p
 
 	$ roslaunch rosbridge_server rosbridge_websocket.launch
 	
-E, para finalizar, basta acessar o navegador no endereço http://localhost:8000/navigation.html
+E, para finalizar, basta acessar o navegador no endereço http://localhost:8000/web_client.html
 

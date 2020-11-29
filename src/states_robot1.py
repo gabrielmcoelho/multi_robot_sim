@@ -4,11 +4,9 @@ import rospy
 import smach
 import smach_ros
 import actionlib
+import time
 from actionlib_msgs.msg import GoalStatus
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-import random
-import time
-from std_msgs.msg import String
 from multi_robots_security_system.msg import RobotPatrolAction, RobotPatrolGoal, RobotPatrolResult
 
 # define state Ocioso
