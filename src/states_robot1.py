@@ -19,16 +19,14 @@ class Ocioso(smach.State):
 
     def __init__(self):      
         smach.State.__init__(self, outcomes=['indoInvestigar', 'patrulhando'],
-                             output_keys=['goal'])        
+                             output_keys=['goal'])    
+        robot.setRobotStatus('available')    
 
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Ocioso')
 
-        while(True): 
-            if(self.request):
-                self.request = False
-                if(mode == 'investigate'):
+        while(True): 1
                     userdata.pose = self.data
                     return 'indoInvestigar'
                 elif(mode == 'patrol'):
@@ -56,6 +54,7 @@ class IndoInvestigar(smach.State):
         self.move_base = actionlib.SimpleActionClient('robot1/move_base', MoveBaseAction)
         self.new_goal = MoveBaseGoal()
         self.robot = robot
+        robot.setRobotStatus('going_to_investigate')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state IndoInvestigar')
@@ -95,6 +94,7 @@ class Investigando(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['indoInvestigar', 'patrulhando', 'ocioso'])
         self.stop = False
+        robot.setRobotStatus('investigating')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Investigando')
@@ -125,6 +125,7 @@ class Patrulhando(smach.State):
         smach.State.__init__(self, outcomes=['indoInvestigar', 'ocioso'])
         self.move_base = actionlib.SimpleActionClient('robot1/move_base', MoveBaseAction)
         self.new_goal = MoveBaseGoal()
+        robot.setRobotStatus('patrolling')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Patrulhando')
@@ -217,13 +218,12 @@ class RobotPatrol():
 
         
 
-    def setResult(self, status):
-        self.robotPatrolResult.status = status
-        self.shouldMove = False
+    def setResult(self):
+        self.shouldPatrol = False
         return
 
-    def setInvestigating(self):
-        self.robotPatrolResult.status = 'investigating'
+    def setRobotStatus(self, status):
+        self.status = status
         return
 
        
