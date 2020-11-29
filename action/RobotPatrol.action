@@ -1,0 +1,15 @@
+# Goal
+# patrol_poses: an Array of poses. 
+    # If it only has one pose, the robot will go investigate that pose and stay there.
+    # If it has more than one pose, the robot will go check sequentially to each pose on the list, repeating the process after the last pose.
+
+geometry_msgs/PoseArray patrol_poses
+
+---
+# Result
+# status: status of the robot (what it is doing at the moment).
+string status 
+
+---
+# Feedback
+# this action doesn't provide any feedback. 
