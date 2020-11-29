@@ -18,7 +18,7 @@ Os seguintes passos devem ser seguidos para configurar o ambiente e executar o p
 2º - Clonar esse repositório na pasta src do seu workspace que acabou de ser criada.
 
 	$ cd ~/catkin_ws/src
-	$ git clone https://github.com/gabrielmcoelho/multi_robot_sim.git multi_robots_security_system
+	$ git clone https://github.com/gabrielmcoelho/multi_robots_security_system.git
 
 3º - Voltar para a pasta raiz do seu workspace e executar o catkin_make:
 
