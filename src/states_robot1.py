@@ -140,6 +140,8 @@ class Patrulhando(smach.State):
         
         self.move_base.wait_for_server()
 
+        print('goal has been sent!')
+
         self.move_base.send_goal(self.new_goal)
 
         self.move_base.wait_for_result()
