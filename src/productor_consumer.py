@@ -19,6 +19,7 @@ class RobotClientController(object):
     
     securityResult = SecurityResult()
     def __init__(self, robots):
+        print('server initialized!')
         self.robots = robots
         self._securityActionServer = actionlib.SimpleActionServer('/security_system', SecurityAction, execute_cb=self.execute_security_action, auto_start = False)
         self._securityActionServer.start()
@@ -49,11 +50,11 @@ class RobotController(threading.Thread):
             if self.receive_goal:
                 self.receive_goal = False
 
-                print('waiting for /robot' + self.robot_number + '/patrol server')
+                print('waiting for /robot' + str(self.robot_number) + '/patrol server')
 
                 self.robot.wait_for_server()
 
-                print('sending patrol action to /robot' + self.robot_number + '/patrol server')
+                print('sending patrol action to /robot' + str(self.robot_number) + '/patrol server')
 
                 self.robot.send_goal(self.robotPatrolGoal, self.on_goal_result)
             else:
