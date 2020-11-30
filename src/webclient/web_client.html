@@ -3,78 +3,266 @@
 <head>
 <meta charset="utf-8" />
 
+<link rel="stylesheet" href="dependencies/bootstrap.min.css">
+<link rel="stylesheet" href="navigation.css">
+
+<script type="text/javascript" src="dependencies/jquery.min.js"></script>
+<script type="text/javascript" src="dependencies/bootstrap.min.js"></script>
 <script type="text/javascript" src="dependencies/easeljs.min.js"></script>
 <script type="text/javascript" src="dependencies/eventemitter2.min.js"></script>
 <script type="text/javascript" src="dependencies/roslib.min.js"></script>
 <script type="text/javascript" src="dependencies/ros2d.min.js"></script>
-<script type="text/javascript" src="nav2d.js"></script>
+<script type="text/javascript" src="dependencies/vuejs.min.js"></script>
+<script type="text/javascript" src="navigation.js"></script>
 
 <script type="text/javascript">
   /**
    * Setup all GUI elements when the page is loaded.
    */
   function init() {
-    window.selectedRobotIndex = 0
+
+    var app = new Vue({
+      el: '#app',
+      // storing the state of the page
+      data: {
+          logs: [],
+          occurrences: [],
+          ws_address: 'ws://localhost:9090',
+          conected: false,
+          ros: null,
+          viewer: null,
+          selectedRobotIndex: 0,
+          nav: {}
+      },
+      methods: {
+        connect: function() {
+            this.ros = new ROSLIB.Ros({
+                url: this.ws_address
+            });
+            this.ros.on('connection', () => {
+                this.logs.unshift({
+                  date: (new Date()).toTimeString(),
+                  message: 'Connected!'
+                });
+                this.connected = true
+            });
+            this.ros.on('error', (error) => {
+                this.logs.unshift({
+                  date: (new Date()).toTimeString(),
+                  message: 'Error: ' + error
+                });
+            });
+            this.ros.on('close', () => {
+                this.logs.unshift({
+                  date: (new Date()).toTimeString(),
+                  message: 'Disconnected!'
+                });
+                this.connected = false
+            });
+        },
+        createViewer: function() {
+          this.viewer = new ROS2D.Viewer({
+            divID : 'nav',
+            width : 650,
+            height : 600
+          });
+        },
+        createOccupancyGridClientNav: function() {
+          this.nav = NAV2D.OccupancyGridClientNav({
+            ros : app.ros,
+            rootObject : app.viewer.scene,
+            viewer : app.viewer,
+            serverName : ['/robot1/move_base', '/robot2/move_base'],
+            poseTopicName: ['/robot1/amcl_pose', '/robot2/amcl_pose'],
+            poseMessageType: 'geometry_msgs/PoseWithCovarianceStamped',
+            robotColors: ['#ff8000', '#80ff00'],
+            withOrientation: false
+          });
+        },
+        selectRobot: function(index) {
+          this.selectedRobotIndex = index;
+        },
+        startPatrol: function(index) {
+          index === 0 && this.nav.robots[0].navigator.startPatrol([
+            {x: 475, y: 154, theta: -0.9323139964404594}, 
+            {x: 393, y: 154, theta: -2.6841178056937682}, 
+            {x: 393, y: 256, theta: 2.0243940229026687}, 
+            {x: 475, y: 256, theta: 0.6564111896256672}
+          ]);
+          index === 1 && this.nav.robots[1].navigator.startPatrol([
+            {x: 268, y: 117, theta: -1.3561322886524252}, 
+            {x: 89, y: 117, theta: -2.414950312908069},
+            {x: 89, y: 246, theta: 1.8516340514160998},
+            {x: 268, y: 246, theta: 0.6383801107286253}
+          ]);
+        },
+        stopPatrol: function(index) {
+          this.nav.robots[index].stopPatrol();
+        },
+        debug: function() {
+          console.log(this)
+        },
+        generateOccurrence: function() {
+          // report ocurrence on the interface
+          $('#alert-occurence').toast('show');
+
+          // select a fake location to put the occurrence
+          var markerConfig = {
+            size : 15,
+            strokeSize : 1,
+            fillColor : createjs.Graphics.getRGB(255, 0, 0, 0.66),
+            pulse : false
+          };
+          var occurrenceCoordinates = [
+            {x: 62, y: 201},
+            {x: 299, y: 164},
+            {x: 508, y: 158},
+            {x: 313, y: 281}
+          ];
+          var locationIndex =  Math.floor(4 * Math.random());
+          var occurrenceLocation = occurrenceCoordinates[locationIndex];
+
+          // create marker to show where the occurrence is and put it on the map
+          var poseMessage = this.nav.createPoseMessage(occurrenceLocation.x, occurrenceLocation.y);
+          var occurrenceMark = this.nav.createMarker(poseMessage, markerConfig);
+          this.nav.rootObject.addChild(occurrenceMark);
+
+          // save a reference to the mark to make it possible to clear it later
+          this.occurrences.push(occurrenceMark);
+        },
+        clearAllOccurrences: function() {
+          for(var i=0; i<this.occurrences.length; i++) {
+            this.nav.rootObject.removeChild(this.occurrences[i]);
+          }
+          this.occurrences = [];
+          $('#alert-occurence').toast('hide');
+        },
+        changeRobotStatus: function(index, status) {
+          this.nav.robots[index].status = status;
+          if(status === 'patrolling') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' received action: PATROL' 
+            });
+          } else if(status === 'investigating') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' received action: INVESTIGATE'
+            });
+          }
+          this.$forceUpdate()
+        }
+      },
+      mounted() {}
+    })
+
     // Connect to ROS.
-    var ros = new ROSLIB.Ros({
-      url : 'ws://localhost:9090'
-    });
+    app.connect();
 
     // Create the main viewer.
-    var viewer = new ROS2D.Viewer({
-      divID : 'nav',
-      width : 750,
-      height : 800
-    });
+    app.createViewer();
 
     // Setup the nav client.
-    window.nav = NAV2D.OccupancyGridClientNav({
-      ros : ros,
-      rootObject : viewer.scene,
-      viewer : viewer,
-      serverName : ['/robot1/move_base', '/robot2/move_base'],
-      poseTopicName: ['/robot1/amcl_pose', '/robot2/amcl_pose'],
-      poseMessageType: 'geometry_msgs/PoseWithCovarianceStamped',
-      withOrientation: true
+    app.createOccupancyGridClientNav();
+
+    // randomly generate occurrences
+    window.setInterval(function() {
+      var fakeChanceOfOccurrence = Math.random();
+      if(fakeChanceOfOccurrence < 0.01) {
+        app.generateOccurrence();
+      }
+    }, 5000);
+
+    // initialize occurence alert container
+    $('.toast').toast({
+      autohide: false
     });
-  }
-
-  function switchRobot() {
-    if(window.selectedRobotIndex === 0) {
-      console.log('SELECTED ROBOT 2');
-      window.selectedRobotIndex = 1;
-    } else {
-      console.log('SELECTED ROBOT 1');
-      window.selectedRobotIndex = 0;
-    }
-  }
-
-  function startPatrol() {  
-    if(window.selectedRobotIndex === 0) {
-      console.log('starting robot 1 patrol...');
-      window.nav.navigator1.startPatrol([
-        {x: 529, y: 198, theta: -0.9323139964404594}, 
-        {x: 459, y: 192, theta: -2.6841178056937682}, 
-        {x: 453, y: 340, theta: 2.0243940229026687}, 
-        {x: 526, y: 343, theta: 0.6564111896256672}
-      ]);
-    } else {
-      console.log('starting robot 2 patrol...');
-      window.nav.navigator2.startPatrol([
-        {x: 308, y: 157, theta: -1.3561322886524252}, 
-        {x: 105, y: 156, theta: -2.414950312908069},
-        {x: 100, y: 329, theta: 1.8516340514160998},
-        {x: 303, y: 331, theta: 0.6383801107286253}
-      ]);
-    }
+  
+    window.app = app;
   }
 </script>
 </head>
 
 <body onload="init()">
-  <h1>Simple Navigation Example</h1>
-  <button onclick="switchRobot()">Switch Robot</button>
-  <button onclick="startPatrol()">Start Patrol</button>
-  <div id="nav"></div>
+  <div id="app">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-8">
+          <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
+            <div class="card-header">
+              <h4 class="card-header-title">Navigation</h4>
+            </div>
+            <div class="card-body text-center">
+              <div id="alert-occurence" style="margin-top: 10px; margin-left: 42px;" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                  <strong class="mr-auto">System</strong>
+                  <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="toast-body bg-danger text-white">
+                  An occurence has appeared on the map!
+                </div>
+              </div>
+              <div id="nav" class="d-inline-block"></div>
+              <div style="height: 0; position: relative; bottom: 250px; text-align: left; margin-left: 42px;">
+                <p style="font-weight: bold; font-size: 14px; user-select: none;">Actions</h6>
+                <div>
+                  <button :disabled='this.occurrences.length === 0' type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
+            <div class="card-header">
+              <h4 class="card-header-title" style="user-select: none;">Robots</h4>
+            </div>
+            <div class="card-body text-center">
+              <p style="text-align: left;color: #bdbdbd;font-size: 14px;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
+              <div v-if="nav.robots" v-for="(robot, index) in nav.robots" v-bind:class="[selectedRobotIndex === index ? 'active' : '']" class="card gray-hover" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(index)">
+                <div class="card-body" style="user-select: none;">
+                  <div class="row align-items-center">
+                    <div class="col">
+                      
+                      <!-- Title -->
+                      <h6 class="text-uppercase mb-2 text-left" v-bind:style="{ color: robot.color }" style="letter-spacing: .08em;">
+                        Robot {{index+1}}
+                      </h6>
+  
+                      <p class="text-left" style="margin-bottom: 0; white-space: nowrap;">
+                        <span style="color: #95aac9;">Status: </span>
+                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling'}">{{robot.status}}</span>
+                      </p>
+                    </div>
+                    <div class="col" style="text-align: right;">
+                      <img height="50" src="robot-icon.png">
+                    </div>
+                  </div> 
+                  <div style="margin-top: 20px;">
+                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-info" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                  </div>
+                </div>
+              </div>
+              <!-- This button is useful to see vuejs's store at runtime. Uncomment it if you are in develop mode -->
+              <!-- <div style="margin-top: 20px; display: none">
+                <button type="button" class="btn btn-outline-info" @click="debug">Debug</button>
+              </div> -->
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h4 class="card-header-title">Recent Activity</h4>
+        </div>
+        <div class="card-body" style="max-height: 200px;overflow: auto;">
+          <p v-for="log of logs" style="font-size: 15px;"><span style="color: gray; font-size: 12px; position: relative; bottom: 2px;">{{ log.date }}</span> - {{ log.message }}</p>
+        </div>
+      </div>
+    </div> 
+  </div>
 </body>
 </html>
