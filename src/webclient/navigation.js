@@ -94,6 +94,7 @@ NAV2D.Navigator = function(options) {
   var withOrientation = options.withOrientation || false;
   var index = options.index;
   this.rootObject = options.rootObject || new createjs.Container();
+  this.nav = options.nav;
 
   // setup the actionlib client
   var actionClient = new ROSLIB.ActionClient({
@@ -128,7 +129,7 @@ NAV2D.Navigator = function(options) {
 
     // create a marker for the goal and put it on the canvas
     if(!withoutMarker) {
-      var goalMarker = createMarker(pose);
+      var goalMarker = that.nav.createMarker(pose);
       that.rootObject.addChild(goalMarker);
     } 
 
@@ -138,73 +139,12 @@ NAV2D.Navigator = function(options) {
       // if patrol is active, send robot to next goal on the patrol's coords list
       if(that.patrol && that.patrol.active) {
         var coordIndex = that.patrol.nextIndex;
-        var pose = createPoseMessage(that.patrol.coords[coordIndex].x, that.patrol.coords[coordIndex].y, that.patrol.coords[coordIndex].theta);
+        var pose = that.nav.createPoseMessage(that.patrol.coords[coordIndex].x, that.patrol.coords[coordIndex].y, that.patrol.coords[coordIndex].theta);
         that.patrol.nextIndex++;
         that.patrol.nextIndex = that.patrol.nextIndex % that.patrol.coords.length;
         sendGoal(pose, true);
       }
     });
-  }
-
-   /**
-   * Create a marker on the map.
-   *
-   * @param pose - the pose that the marker will be based upon
-   * @param customConfig - optional config for the marker
-   */
-  function createMarker(pose, customConfig) {
-    var defaultConfig = {
-      size : 15,
-      strokeSize : 1,
-      fillColor : createjs.Graphics.getRGB(255, 64, 128, 0.66),
-      pulse : true
-    }
-    var config = customConfig || defaultConfig;
-    var marker = new ROS2D.NavigationArrow(config);
-    marker.x = pose.position.x;
-    marker.y = -pose.position.y;
-    marker.rotation = stage.rosQuaternionToGlobalTheta(pose.orientation);
-    marker.scaleX = 0.5 / stage.scaleX;
-    marker.scaleY = 0.5 / stage.scaleY;
-    return marker;
-  }
-
-  /**
-   * Get z and w orientation params of the quaternion
-   *
-   * @param theta - orientation of the robot in radians (optional)
-   */
-  function getOrientationParams(theta) {
-    if (theta >= 0 && theta <= Math.PI) {
-      theta += (3 * Math.PI / 2);
-    } else {
-      theta -= (Math.PI/2);
-    }
-    var qz =  Math.sin(-theta/2.0);
-    var qw =  Math.cos(-theta/2.0);
-    return {qz: qz, qw: qw};
-  }
-
-  /**
-   * Create a pose message to send to the robot
-   *
-   * @param x - position x of the map
-   * @param y - position y of the map
-   * @param theta - orientation of the robot in radians (optional)
-   */
-  
-  function createPoseMessage(x, y, theta) {
-    console.warn(theta);
-    // convert map coordinates to ROS coordinates
-    var coords = stage.globalToRos(x, y);
-    var config = {
-      position : new ROSLIB.Vector3(coords)
-    }
-    if(theta) {
-      var orientation = getOrientationParams(theta);
-      config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
-    }
-    return new ROSLIB.Pose(config);
   }
 
   /**
@@ -223,19 +163,11 @@ NAV2D.Navigator = function(options) {
     };
 
     // send robot to first coordinate
-    var pose = createPoseMessage(posePositions[0].x, posePositions[0].y, posePositions[0].theta);
+    var pose = that.nav.createPoseMessage(posePositions[0].x, posePositions[0].y, posePositions[0].theta);
     sendGoal(pose, true);
   }
 
   that.startPatrol = startPatrol; // expose patrol method to the application
-
-  // get a handle to the stage
-  var stage;
-  if (that.rootObject instanceof createjs.Stage) {
-    stage = that.rootObject;
-  } else {
-    stage = that.rootObject.getStage();
-  }
 
   var fillColor = createjs.Graphics.getRGB(255, 128, 0, 0.66);
   if(index === 1) {
@@ -275,13 +207,13 @@ NAV2D.Navigator = function(options) {
     robotMarker.x = poseData.position.x;
     robotMarker.y = -poseData.position.y;
     if (!initScaleSet) {
-      robotMarker.scaleX = 0.5 / stage.scaleX;
-      robotMarker.scaleY = 0.5 / stage.scaleY;
+      robotMarker.scaleX = 0.5 / that.nav.stage.scaleX;
+      robotMarker.scaleY = 0.5 / that.nav.stage.scaleY;
       initScaleSet = true;
     }
 
     // change the angle
-    robotMarker.rotation = stage.rosQuaternionToGlobalTheta(poseData.orientation);
+    robotMarker.rotation = that.nav.stage.rosQuaternionToGlobalTheta(poseData.orientation);
 
     robotMarker.visible = true;
   });
@@ -289,7 +221,7 @@ NAV2D.Navigator = function(options) {
   if (withOrientation === false){
     // setup a double click listener (no orientation)
     this.rootObject.addEventListener('dblclick', function(event) {
-      var pose = createPoseMessage(event.stageX, event.stageY);
+      var pose = that.nav.createPoseMessage(event.stageX, event.stageY);
       // send the goal if this robot is the one selected
       // without this check, every robot would receive the goal
       if(index === window.selectedRobotIndex) {
@@ -311,7 +243,7 @@ NAV2D.Navigator = function(options) {
 
       if (mouseState === 'down'){
         // get position when mouse button is pressed down
-        position = stage.globalToRos(event.stageX, event.stageY);
+        position = that.nav.stage.globalToRos(event.stageX, event.stageY);
         positionVec3 = new ROSLIB.Vector3(position);
         mouseDown = true;
       }
@@ -324,7 +256,7 @@ NAV2D.Navigator = function(options) {
           // - get current mouse position
           // - calulate direction between stored <position> and current position
           // - place orientation marker
-          var currentPos = stage.globalToRos(event.stageX, event.stageY);
+          var currentPos = that.nav.stage.globalToRos(event.stageX, event.stageY);
           var currentPosVec3 = new ROSLIB.Vector3(currentPos);
 
           orientationMarker = new ROS2D.NavigationArrow({
@@ -350,8 +282,8 @@ NAV2D.Navigator = function(options) {
           orientationMarker.x =  positionVec3.x;
           orientationMarker.y = -positionVec3.y;
           orientationMarker.rotation = thetaDegrees;
-          orientationMarker.scaleX = 0.5 / stage.scaleX;
-          orientationMarker.scaleY = 0.5 / stage.scaleY;
+          orientationMarker.scaleX = 0.5 / that.nav.stage.scaleX;
+          orientationMarker.scaleY = 0.5 / that.nav.stage.scaleY;
           
           that.rootObject.addChild(orientationMarker);
         }
@@ -364,12 +296,12 @@ NAV2D.Navigator = function(options) {
         mouseDown = false;
 
         // calculate orientation
-        var goalPos = stage.globalToRos(event.stageX, event.stageY);
+        var goalPos = that.nav.stage.globalToRos(event.stageX, event.stageY);
         var goalPosVec3 = new ROSLIB.Vector3(goalPos);
         xDelta =  goalPosVec3.x - positionVec3.x;
         yDelta =  goalPosVec3.y - positionVec3.y;
         thetaRadians  = Math.atan2(xDelta,yDelta);
-        var orientationParams = getOrientationParams(thetaRadians);
+        var orientationParams = that.nav.getOrientationParams(thetaRadians);
         var orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientationParams.qz, w: orientationParams.qw});
         
         // send goal
@@ -435,9 +367,76 @@ NAV2D.OccupancyGridClientNav = function(options) {
   this.rootObject = options.rootObject || new createjs.Container();
   this.viewer = options.viewer;
   this.withOrientation = options.withOrientation || false;
-  that.robotColors = options.robotColors
-
+  this.robotColors = options.robotColors
   this.robots = [];
+  this.stage = null;
+
+  // get a handle to the stage
+  if (this.rootObject instanceof createjs.Stage) {
+    this.stage = this.rootObject;
+  } else {
+    this.stage = this.rootObject.getStage();
+  }
+
+  /**
+   * Get z and w orientation params of the quaternion
+   *
+   * @param theta - orientation of the robot in radians (optional)
+   */
+  this.getOrientationParams = function(theta) {
+    if (theta >= 0 && theta <= Math.PI) {
+      theta += (3 * Math.PI / 2);
+    } else {
+      theta -= (Math.PI/2);
+    }
+    var qz =  Math.sin(-theta/2.0);
+    var qw =  Math.cos(-theta/2.0);
+    return {qz: qz, qw: qw};
+  }
+
+  /**
+   * Create a pose message to send to the robot
+   *
+   * @param x - position x of the map
+   * @param y - position y of the map
+   * @param theta - orientation of the robot in radians (optional)
+   */
+  
+  this.createPoseMessage = function(x, y, theta) {
+    // convert map coordinates to ROS coordinates
+    var coords = that.stage.globalToRos(x, y);
+    var config = {
+      position : new ROSLIB.Vector3(coords)
+    }
+    if(theta) {
+      var orientation = getOrientationParams(theta);
+      config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
+    }
+    return new ROSLIB.Pose(config);
+  }
+
+     /**
+   * Create a marker on the map.
+   *
+   * @param pose - the pose that the marker will be based upon
+   * @param customConfig - optional config for the marker
+   */
+  this.createMarker = function(pose, customConfig) {
+    var defaultConfig = {
+      size : 15,
+      strokeSize : 1,
+      fillColor : createjs.Graphics.getRGB(255, 64, 128, 0.66),
+      pulse : true
+    }
+    var config = customConfig || defaultConfig;
+    var marker = new ROS2D.NavigationArrow(config);
+    marker.x = pose.position.x;
+    marker.y = -pose.position.y;
+    marker.rotation = that.stage.rosQuaternionToGlobalTheta(pose.orientation);
+    marker.scaleX = 0.5 / that.stage.scaleX;
+    marker.scaleY = 0.5 / that.stage.scaleY;
+    return marker;
+  }
 
   // setup a client to get the map
   var client = new ROS2D.OccupancyGridClient({
@@ -453,6 +452,7 @@ NAV2D.OccupancyGridClientNav = function(options) {
         that.robots.push({});
         that.robots[i].navigator = new NAV2D.Navigator({
           ros : that.ros,
+          nav: that,
           serverName : that.serverName[i],
           actionName : that.actionName,
           rootObject : that.rootObject,
