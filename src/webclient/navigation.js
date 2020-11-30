@@ -110,7 +110,7 @@ NAV2D.Navigator = function(options) {
    * @param action - can be 'investigate' or 'patrol'
    */
   this.sendGoal = function(poses, action) {
-    
+
     var goal = new ROSLIB.Goal({
       actionClient : securityActionClient,
       goalMessage : {
@@ -127,17 +127,19 @@ NAV2D.Navigator = function(options) {
     // create a marker if action is 'investigate
     if(action === 'investigate') {
       window.app.changeRobotStatus(index, 'investigating');
-      // that.nav.robots[index].status = 'investigating'
       var goalMarker = that.nav.createMarker(poses[0]);
       that.rootObject.addChild(goalMarker);
-    } else {
+    } else if(action === 'patrol'){
       window.app.changeRobotStatus(index, 'patrolling');
+    } else {
+      window.app.changeRobotStatus(index, 'available');
     }
 
     goal.send();
 
     // handle goal result
     goal.on('result', function() {
+      console.warn('goal result')
       that.rootObject.removeChild(goalMarker);
       that.nav.robots[index].status = 'investigating'
     });
@@ -160,6 +162,10 @@ NAV2D.Navigator = function(options) {
 
     // send goal to robot
     that.sendGoal(poses, 'patrol');
+  }
+
+  this.stopAllRobotActions = function() {
+    that.sendGoal([]);
   }
 
   var fillColor = createjs.Graphics.getRGB(255, 128, 0, 0.66);

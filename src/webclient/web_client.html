@@ -97,7 +97,10 @@
           ]);
         },
         stopPatrol: function(index) {
-          this.nav.robots[index].stopPatrol();
+          // this.nav.robots[index].stopPatrol();
+        },
+        stopAllRobotActions: function(index) {
+          this.nav.robots[index].navigator.stopAllRobotActions();
         },
         debug: function() {
           console.log(this)
@@ -242,6 +245,7 @@
                   </div> 
                   <div style="margin-top: 20px;">
                     <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-info" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button type="button" class="btn btn-danger" @click="stopAllRobotActions(selectedRobotIndex)">STOP</button>
                     <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
                   </div>
                 </div>

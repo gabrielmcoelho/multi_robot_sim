@@ -34,7 +34,7 @@ class RobotClientController(object):
     def on_goal_result(self, result, robotIndex):
         self.securityResult.status = result.status
         self.securityResult.robotIndex = robotIndex
-        self._securityActionServer.set_succeeded(self.securityResult)
+        # self._securityActionServer.set_succeeded(self.securityResult)
 
 class RobotController(threading.Thread):
     receive_goal = False
