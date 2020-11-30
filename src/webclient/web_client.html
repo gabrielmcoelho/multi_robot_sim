@@ -81,16 +81,8 @@
         },
         selectRobot: function(index) {
           this.selectedRobotIndex = index;
-          this.logs.unshift({
-            date: (new Date()).toTimeString(),
-            message: ' Selected robot ' + (index+1)
-          });
         },
         startPatrol: function(index) {
-          this.logs.unshift({
-            date: (new Date()).toTimeString(),
-            message: ' Started robot ' + (index+1) + ' patrol'
-          });
           index === 0 && this.nav.robots[0].navigator.startPatrol([
             {x: 475, y: 154, theta: -0.9323139964404594}, 
             {x: 393, y: 154, theta: -2.6841178056937682}, 
@@ -144,6 +136,21 @@
           }
           this.occurrences = [];
           $('#alert-occurence').toast('hide');
+        },
+        changeRobotStatus: function(index, status) {
+          this.nav.robots[index].status = status;
+          if(status === 'patrolling') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' received action: PATROL' 
+            });
+          } else if(status === 'investigating') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' received action: INVESTIGATE'
+            });
+          }
+          this.$forceUpdate()
         }
       },
       mounted() {}
@@ -199,7 +206,7 @@
               </div>
               <div id="nav" class="d-inline-block"></div>
               <div style="height: 0; position: relative; bottom: 250px; text-align: left; margin-left: 42px;">
-                <p style="font-weight: bold; font-size: 14px;">Actions</h6>
+                <p style="font-weight: bold; font-size: 14px; user-select: none;">Actions</h6>
                 <div>
                   <button :disabled='this.occurrences.length === 0' type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
                 </div>
@@ -210,12 +217,12 @@
         <div class="col-md-4">
           <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
             <div class="card-header">
-              <h4 class="card-header-title">Robots</h4>
+              <h4 class="card-header-title" style="user-select: none;">Robots</h4>
             </div>
             <div class="card-body text-center">
               <p style="text-align: left;color: #bdbdbd;font-size: 14px;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
-              <div v-if="nav.robots" v-for="(robot, index) in nav.robots" v-bind:class="[selectedRobotIndex === index ? 'active' : '']" class="card gray-hover" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(0)">
-                <div class="card-body">
+              <div v-if="nav.robots" v-for="(robot, index) in nav.robots" v-bind:class="[selectedRobotIndex === index ? 'active' : '']" class="card gray-hover" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(index)">
+                <div class="card-body" style="user-select: none;">
                   <div class="row align-items-center">
                     <div class="col">
                       
@@ -224,9 +231,9 @@
                         Robot {{index+1}}
                       </h6>
   
-                      <p class="text-left" style="margin-bottom: 0;">
+                      <p class="text-left" style="margin-bottom: 0; white-space: nowrap;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available' }">{{robot.status}}</span>
+                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling'}">{{robot.status}}</span>
                       </p>
                     </div>
                     <div class="col" style="text-align: right;">
@@ -234,14 +241,15 @@
                     </div>
                   </div> 
                   <div style="margin-top: 20px;">
-                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-info" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
                   </div>
                 </div>
               </div>
-              <div style="margin-top: 20px;">
+              <!-- This button is useful to see vuejs's store at runtime. Uncomment it if you are in develop mode -->
+              <!-- <div style="margin-top: 20px; display: none">
                 <button type="button" class="btn btn-outline-info" @click="debug">Debug</button>
-              </div>
+              </div> -->
             </div>
           </div>
         </div>
@@ -251,7 +259,7 @@
           <h4 class="card-header-title">Recent Activity</h4>
         </div>
         <div class="card-body" style="max-height: 200px;overflow: auto;">
-          <p v-for="log of logs"><span style="color: gray; font-size: 12px; position: relative; bottom: 2px;">{{ log.date }}</span> - {{ log.message }}</p>
+          <p v-for="log of logs" style="font-size: 15px;"><span style="color: gray; font-size: 12px; position: relative; bottom: 2px;">{{ log.date }}</span> - {{ log.message }}</p>
         </div>
       </div>
     </div> 

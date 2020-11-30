@@ -110,9 +110,7 @@ NAV2D.Navigator = function(options) {
    * @param action - can be 'investigate' or 'patrol'
    */
   this.sendGoal = function(poses, action) {
-    console.log('sending goal to robot ' + (index+1));
-    console.log('action: ' + action);
-
+    
     var goal = new ROSLIB.Goal({
       actionClient : securityActionClient,
       goalMessage : {
@@ -128,11 +126,12 @@ NAV2D.Navigator = function(options) {
 
     // create a marker if action is 'investigate
     if(action === 'investigate') {
-      that.nav.robots[index].status = 'going to investigate'
+      window.app.changeRobotStatus(index, 'investigating');
+      // that.nav.robots[index].status = 'investigating'
       var goalMarker = that.nav.createMarker(poses[0]);
       that.rootObject.addChild(goalMarker);
     } else {
-      that.nav.robots[index].status = 'patrolling'
+      window.app.changeRobotStatus(index, 'patrolling');
     }
 
     goal.send();
@@ -405,7 +404,7 @@ NAV2D.OccupancyGridClientNav = function(options) {
       position : new ROSLIB.Vector3(coords)
     }
     if(theta) {
-      var orientation = getOrientationParams(theta);
+      var orientation = that.getOrientationParams(theta);
       config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
     }
     return new ROSLIB.Pose(config);
