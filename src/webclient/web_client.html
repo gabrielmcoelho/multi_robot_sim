@@ -76,7 +76,7 @@
             poseTopicName: ['/robot1/amcl_pose', '/robot2/amcl_pose'],
             poseMessageType: 'geometry_msgs/PoseWithCovarianceStamped',
             robotColors: ['#ff8000', '#80ff00'],
-            withOrientation: true
+            withOrientation: false
           });
         },
         selectRobot: function(index) {
@@ -91,64 +91,23 @@
             date: (new Date()).toTimeString(),
             message: ' Started robot ' + (index+1) + ' patrol'
           });
-          index === 0 && this.nav.robots[0].startPatrol([
-            {x: 529, y: 198, theta: -0.9323139964404594}, 
-            {x: 459, y: 192, theta: -2.6841178056937682}, 
-            {x: 453, y: 340, theta: 2.0243940229026687}, 
-            {x: 526, y: 343, theta: 0.6564111896256672}
+          index === 0 && this.nav.robots[0].navigator.startPatrol([
+            {x: 475, y: 154, theta: -0.9323139964404594}, 
+            {x: 393, y: 154, theta: -2.6841178056937682}, 
+            {x: 393, y: 256, theta: 2.0243940229026687}, 
+            {x: 475, y: 256, theta: 0.6564111896256672}
           ]);
-          index === 1 && this.nav.robots[1].startPatrol([
-            {x: 308, y: 157, theta: -1.3561322886524252}, 
-            {x: 105, y: 156, theta: -2.414950312908069},
-            {x: 100, y: 329, theta: 1.8516340514160998},
-            {x: 303, y: 331, theta: 0.6383801107286253}
+          index === 1 && this.nav.robots[1].navigator.startPatrol([
+            {x: 268, y: 117, theta: -1.3561322886524252}, 
+            {x: 89, y: 117, theta: -2.414950312908069},
+            {x: 89, y: 246, theta: 1.8516340514160998},
+            {x: 268, y: 246, theta: 0.6383801107286253}
           ]);
         },
         stopPatrol: function(index) {
           this.nav.robots[index].stopPatrol();
         },
         debug: function() {
-          // var securityActionClient = new ROSLIB.ActionClient({
-          //   ros : this.ros,
-          //   actionName : 'multi_robots_security_system/SecurityAction',
-          //   serverName : '/security_system'
-          // });
-          // console.log(securityActionClient);
-          // var rootObject = this.nav.robots[0].rootObject;
-          // var stage = null;
-          // if (rootObject instanceof createjs.Stage) {
-          //   stage = rootObject;
-          // } else {
-          //   stage = rootObject.getStage();
-          // }
-          // function createPoseMessage(x, y, theta) {
-          //   // convert map coordinates to ROS coordinates
-          //   var coords = stage.globalToRos(x, y);
-          //   var config = {
-          //     position : new ROSLIB.Vector3(coords)
-          //   }
-          //   if(theta) {
-          //     var orientation = getOrientationParams(theta);
-          //     config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
-          //   }
-          //   return new ROSLIB.Pose(config);
-          // }
-          // var pose1 = createPoseMessage(529, 198);
-          // var pose2 = createPoseMessage(459, 192);
-          // var goal = new ROSLIB.Goal({
-          //   actionClient : securityActionClient,
-          //   goalMessage : {
-          //       robotIndex: 0,
-          //       patrol_poses : {
-          //         header : {
-          //           frame_id : '/map'
-          //         },
-          //         poses : [pose1, pose2]
-          //       }
-          //     }
-          // });
-          // console.log(goal);
-          // goal.send();
           console.log(this)
         },
         generateOccurrence: function() {

@@ -97,77 +97,71 @@ NAV2D.Navigator = function(options) {
   this.nav = options.nav;
 
   // setup the actionlib client
-  var actionClient = new ROSLIB.ActionClient({
+  var securityActionClient = new ROSLIB.ActionClient({
     ros : ros,
-    actionName : actionName,
-    serverName : serverName
+    actionName : 'multi_robots_security_system/SecurityAction',
+    serverName : '/security_system'
   });
 
   /**
    * Send a goal to the navigation stack with the given pose.
    *
-   * @param pose - the goal pose
-   * @param withoutMarker - if set to true, do not create a marker for the goal on the map
+   * @param poses - an array of poses (if mode is investigate, should be an array with a single pose)
+   * @param action - can be 'investigate' or 'patrol'
    */
-  function sendGoal(pose, withoutMarker) {
+  this.sendGoal = function(poses, action) {
     console.log('sending goal to robot ' + (index+1));
+    console.log('action: ' + action);
 
-    // create a goal and send it to robot ${index}
     var goal = new ROSLIB.Goal({
-      actionClient : actionClient,
+      actionClient : securityActionClient,
       goalMessage : {
-        target_pose : {
-          header : {
-            frame_id : '/map'
-          },
-          pose : pose
+          robotIndex: index,
+          patrol_poses : {
+            header : {
+              frame_id : '/map'
+            },
+            poses : poses
+          }
         }
-      }
     });
-    currentGoal = goal;
-    goal.send();
 
-    // create a marker for the goal and put it on the canvas
-    if(!withoutMarker) {
-      var goalMarker = that.nav.createMarker(pose);
+    // create a marker if action is 'investigate
+    if(action === 'investigate') {
+      that.nav.robots[index].status = 'going to investigate'
+      var goalMarker = that.nav.createMarker(poses[0]);
       that.rootObject.addChild(goalMarker);
-    } 
+    } else {
+      that.nav.robots[index].status = 'patrolling'
+    }
+
+    goal.send();
 
     // handle goal result
     goal.on('result', function() {
       that.rootObject.removeChild(goalMarker);
-      // if patrol is active, send robot to next goal on the patrol's coords list
-      if(that.patrol && that.patrol.active) {
-        var coordIndex = that.patrol.nextIndex;
-        var pose = that.nav.createPoseMessage(that.patrol.coords[coordIndex].x, that.patrol.coords[coordIndex].y, that.patrol.coords[coordIndex].theta);
-        that.patrol.nextIndex++;
-        that.patrol.nextIndex = that.patrol.nextIndex % that.patrol.coords.length;
-        sendGoal(pose, true);
-      }
+      that.nav.robots[index].status = 'investigating'
     });
   }
 
   /**
    * Begins patrol on the robot 
    *
-   * @param posePositions - coordinate list where the robot will check
+   * @param coordinates - a list of coordinates to patrol
    */
-  function startPatrol(posePositions) {
-    if(posePositions.length === 0) return;
+  this.startPatrol = function(coordinates) {
+    if(coordinates.length === 0) return;
 
-    // set patrol configuration
-    that.patrol = {
-      active: true,
-      coords: posePositions,
-      nextIndex: 0
-    };
+    // create pose messages for each coordinate
+    var poses = [];
 
-    // send robot to first coordinate
-    var pose = that.nav.createPoseMessage(posePositions[0].x, posePositions[0].y, posePositions[0].theta);
-    sendGoal(pose, true);
+    for(var i=0; i<coordinates.length; i++) {
+      poses.push(that.nav.createPoseMessage(coordinates[i].x, coordinates[i].y, coordinates[i].theta))
+    }
+
+    // send goal to robot
+    that.sendGoal(poses, 'patrol');
   }
-
-  that.startPatrol = startPatrol; // expose patrol method to the application
 
   var fillColor = createjs.Graphics.getRGB(255, 128, 0, 0.66);
   if(index === 1) {
@@ -181,6 +175,7 @@ NAV2D.Navigator = function(options) {
     fillColor : fillColor,
     pulse : true
   });
+
   // wait for a pose to come in first
   robotMarker.visible = false;
   this.rootObject.addChild(robotMarker);
@@ -193,6 +188,7 @@ NAV2D.Navigator = function(options) {
     messageType : poseMessageType,
     throttle_rate : 100
   });
+
   poseListener.subscribe(function(pose) {
     // workaround to handle different types of poseMessageType
     var poseData = null;
@@ -224,8 +220,8 @@ NAV2D.Navigator = function(options) {
       var pose = that.nav.createPoseMessage(event.stageX, event.stageY);
       // send the goal if this robot is the one selected
       // without this check, every robot would receive the goal
-      if(index === window.selectedRobotIndex) {
-        sendGoal(pose);
+      if(index === window.app.selectedRobotIndex) {
+        that.sendGoal([pose], 'investigate');
       }
     });
   } else { // withOrientation === true
@@ -294,7 +290,6 @@ NAV2D.Navigator = function(options) {
         // - set pose with orientation
         // - send goal
         mouseDown = false;
-        console.warn('ASIUDHAYUISDHAISUD');
 
         // calculate orientation
         var goalPos = that.nav.stage.globalToRos(event.stageX, event.stageY);
@@ -313,7 +308,7 @@ NAV2D.Navigator = function(options) {
         // send the goal if this robot is the one selected
         // without this check, every robot would receive the goal
         if(index === window.app.selectedRobotIndex) {
-          sendGoal(pose);
+          that.sendGoal([pose], 'investigate');
         } 
       }
     };
@@ -404,8 +399,6 @@ NAV2D.OccupancyGridClientNav = function(options) {
    */
   
   this.createPoseMessage = function(x, y, theta) {
-    console.warn(x);
-    console.warn(y);
     // convert map coordinates to ROS coordinates
     var coords = that.stage.globalToRos(x, y);
     var config = {
