@@ -294,6 +294,7 @@ NAV2D.Navigator = function(options) {
         // - set pose with orientation
         // - send goal
         mouseDown = false;
+        console.warn('ASIUDHAYUISDHAISUD');
 
         // calculate orientation
         var goalPos = that.nav.stage.globalToRos(event.stageX, event.stageY);
@@ -311,9 +312,9 @@ NAV2D.Navigator = function(options) {
         });
         // send the goal if this robot is the one selected
         // without this check, every robot would receive the goal
-        if(index === window.selectedRobotIndex) {
+        if(index === window.app.selectedRobotIndex) {
           sendGoal(pose);
-        }
+        } 
       }
     };
 
@@ -403,6 +404,8 @@ NAV2D.OccupancyGridClientNav = function(options) {
    */
   
   this.createPoseMessage = function(x, y, theta) {
+    console.warn(x);
+    console.warn(y);
     // convert map coordinates to ROS coordinates
     var coords = that.stage.globalToRos(x, y);
     var config = {
