@@ -215,40 +215,53 @@
 <body onload="init()">
   <div id="app">
     <div class="container">
-      <div id="alert-occurence" style="margin-top: 10px;" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header">
-          <strong class="mr-auto">System</strong>
-          <small>11 mins ago</small>
-          <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="toast-body bg-danger text-white">
-          An occurence has appeared on the map!
-        </div>
-      </div>
       <div class="row">
         <div class="col-md-8">
-          <div class="card" style="margin: 10px 0 10px 0">
+          <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
             <div class="card-header">
               <h4 class="card-header-title">Navigation</h4>
             </div>
             <div class="card-body text-center">
+              <div id="alert-occurence" style="margin-top: 10px; margin-left: 42px;" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                  <strong class="mr-auto">System</strong>
+                  <small>11 mins ago</small>
+                  <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                  </button>
+                </div>
+                <div class="toast-body bg-danger text-white">
+                  An occurence has appeared on the map!
+                </div>
+              </div>
               <div id="nav" class="d-inline-block"></div>
+              <div style="height: 0; position: relative; bottom: 250px; text-align: left; margin-left: 42px;">
+                <p style="font-weight: bold; font-size: 14px;">Actions</h6>
+                <div>
+                  <button type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
+                </div>
+                <div>
+                  <button type="button" class="btn btn-outline-secondary" style="width: 200px; margin-top: 10px;" disabled>Another action</button>
+                </div>
+                <div>
+                  <button type="button" class="btn btn-outline-secondary" style="width: 200px; margin-top: 10px;" disabled>Another action</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
         <div class="col-md-4">
-          <div class="card" style="margin: 10px 0 10px 0">
+          <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
             <div class="card-header">
               <h4 class="card-header-title">Robots</h4>
             </div>
             <div class="card-body text-center">
+              <p style="text-align: left;color: #bdbdbd;font-size: 14px;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
               <div class="card gray-hover" v-bind:class="[selectedRobotIndex === 0 ? 'active' : '']" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(0)">
                 <div class="card-body">
                   <div class="row align-items-center">
                     <div class="col">
-  
+                      
                       <!-- Title -->
                       <h6 class="text-uppercase mb-2 text-left" style="color: rgb(255, 128, 0); letter-spacing: .08em;">
                         Robot 1
@@ -256,17 +269,26 @@
   
                       <p class="text-left" style="margin-bottom: 0;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span v-if="nav.robots && nav.robots[0]" v-bind:class="{ 'text-success': nav.robots[0].status === 'available', 'text-warning': nav.robots[0].status === 'investigating', 'text-info': nav.robots[0].status === 'patrolling' }">{{nav.robots[0].status}}</span>
+                        <span class="text-success">Available</span>
                       </p>
                     </div>
+                    <div class="col" style="text-align: right;">
+                      <img height="50" src="https://cdn1.iconfinder.com/data/icons/robots-avatars-set/354/Robot_chatbot___robot_robo_chatbot_digital_chat_bot-512.png">
+                    </div>
                   </div> 
+                  <div style="margin-top: 20px;">
+                    <button type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                  </div>
+                  <div style="text-align: left; display: none;">
+                    <button type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                  </div>
                 </div>
               </div>
               <div class="card gray-hover" v-bind:class="[selectedRobotIndex === 1 ? 'active' : '']" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(1)">
                 <div class="card-body">
                   <div class="row align-items-center">
                     <div class="col">
-  
+                      
                       <!-- Title -->
                       <h6 class="text-uppercase mb-2 text-left" style="color: rgb(128, 255, 0); letter-spacing: .08em;">
                         Robot 2
@@ -274,21 +296,29 @@
   
                       <p class="text-left" style="margin-bottom: 0;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span v-if="nav.robots && nav.robots[1]" v-bind:class="{ 'text-success': nav.robots[1].status === 'available', 'text-warning': nav.robots[1].status === 'investigating', 'text-info': nav.robots[1].status === 'patrolling' }">{{nav.robots[1].status}}</span>
+                        <span class="text-success">Available</span>
                       </p>
                     </div>
+                    <div class="col" style="text-align: right;">
+                      <img height="50" src="https://cdn1.iconfinder.com/data/icons/robots-avatars-set/354/Robot_chatbot___robot_robo_chatbot_digital_chat_bot-512.png">
+                    </div>
                   </div> 
+                  <div style="margin-top: 20px;">
+                    <button type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                  </div>
+                  <div style="text-align: left; display: none;">
+                    <button type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                  </div>
                 </div>
               </div>
-              <button v-if="nav.robots && nav.robots[selectedRobotIndex]" type="button" class="btn btn-outline-primary" v-bind:disabled="nav.robots[selectedRobotIndex].status === 'patrolling'" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-              <button v-if="nav.robots && nav.robots[selectedRobotIndex]" type="button" class="btn btn-outline-danger" v-bind:disabled="nav.robots[selectedRobotIndex].status !== 'patrolling'" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
-              <button type="button" class="btn btn-outline-info" @click="debug">Debug</button>
-              <button type="button" class="btn btn-outline-info" @click="clearAllOccurrences">Clear all occurrences</button>
+              <div style="margin-top: 20px;">
+                <button type="button" class="btn btn-outline-info" @click="debug">Debug</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-top: 20px;">
         <div class="card-header">
           <h4 class="card-header-title">Recent Activity</h4>
         </div>

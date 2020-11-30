@@ -22,3 +22,7 @@ body {
 .gray-hover:hover {
     background-color: #f9fbfd;
 }
+.toast.hide {
+    opacity: 0;
+    display: block;
+}
