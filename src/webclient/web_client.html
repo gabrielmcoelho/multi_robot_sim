@@ -75,6 +75,7 @@
             serverName : ['/robot1/move_base', '/robot2/move_base'],
             poseTopicName: ['/robot1/amcl_pose', '/robot2/amcl_pose'],
             poseMessageType: 'geometry_msgs/PoseWithCovarianceStamped',
+            robotColors: ['#ff8000', '#80ff00'],
             withOrientation: true
           });
         },
@@ -107,47 +108,48 @@
           this.nav.robots[index].stopPatrol();
         },
         debug: function() {
-          var securityActionClient = new ROSLIB.ActionClient({
-            ros : this.ros,
-            actionName : 'multi_robots_security_system/SecurityAction',
-            serverName : '/security_system'
-          });
-          console.log(securityActionClient);
-          var rootObject = this.nav.robots[0].rootObject;
-          var stage = null;
-          if (rootObject instanceof createjs.Stage) {
-            stage = rootObject;
-          } else {
-            stage = rootObject.getStage();
-          }
-          function createPoseMessage(x, y, theta) {
-            // convert map coordinates to ROS coordinates
-            var coords = stage.globalToRos(x, y);
-            var config = {
-              position : new ROSLIB.Vector3(coords)
-            }
-            if(theta) {
-              var orientation = getOrientationParams(theta);
-              config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
-            }
-            return new ROSLIB.Pose(config);
-          }
-          var pose1 = createPoseMessage(529, 198);
-          var pose2 = createPoseMessage(459, 192);
-          var goal = new ROSLIB.Goal({
-            actionClient : securityActionClient,
-            goalMessage : {
-                robotIndex: 0,
-                patrol_poses : {
-                  header : {
-                    frame_id : '/map'
-                  },
-                  poses : [pose1, pose2]
-                }
-              }
-          });
-          console.log(goal);
-          goal.send();
+          // var securityActionClient = new ROSLIB.ActionClient({
+          //   ros : this.ros,
+          //   actionName : 'multi_robots_security_system/SecurityAction',
+          //   serverName : '/security_system'
+          // });
+          // console.log(securityActionClient);
+          // var rootObject = this.nav.robots[0].rootObject;
+          // var stage = null;
+          // if (rootObject instanceof createjs.Stage) {
+          //   stage = rootObject;
+          // } else {
+          //   stage = rootObject.getStage();
+          // }
+          // function createPoseMessage(x, y, theta) {
+          //   // convert map coordinates to ROS coordinates
+          //   var coords = stage.globalToRos(x, y);
+          //   var config = {
+          //     position : new ROSLIB.Vector3(coords)
+          //   }
+          //   if(theta) {
+          //     var orientation = getOrientationParams(theta);
+          //     config.orientation = new ROSLIB.Quaternion({x:0, y:0, z: orientation.qz, w: orientation.qw});
+          //   }
+          //   return new ROSLIB.Pose(config);
+          // }
+          // var pose1 = createPoseMessage(529, 198);
+          // var pose2 = createPoseMessage(459, 192);
+          // var goal = new ROSLIB.Goal({
+          //   actionClient : securityActionClient,
+          //   goalMessage : {
+          //       robotIndex: 0,
+          //       patrol_poses : {
+          //         header : {
+          //           frame_id : '/map'
+          //         },
+          //         poses : [pose1, pose2]
+          //       }
+          //     }
+          // });
+          // console.log(goal);
+          // goal.send();
+          console.log(this)
         },
         generateOccurrence: function() {
           // report ocurrence on the interface
@@ -257,57 +259,28 @@
             </div>
             <div class="card-body text-center">
               <p style="text-align: left;color: #bdbdbd;font-size: 14px;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
-              <div class="card gray-hover" v-bind:class="[selectedRobotIndex === 0 ? 'active' : '']" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(0)">
+              <div v-if="nav.robots" v-for="(robot, index) in nav.robots" v-bind:class="[selectedRobotIndex === index ? 'active' : '']" class="card gray-hover" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(0)">
                 <div class="card-body">
                   <div class="row align-items-center">
                     <div class="col">
                       
                       <!-- Title -->
-                      <h6 class="text-uppercase mb-2 text-left" style="color: rgb(255, 128, 0); letter-spacing: .08em;">
-                        Robot 1
+                      <h6 class="text-uppercase mb-2 text-left" v-bind:style="{ color: robot.color }" style="letter-spacing: .08em;">
+                        Robot {{index+1}}
                       </h6>
   
                       <p class="text-left" style="margin-bottom: 0;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span class="text-success">Available</span>
+                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available' }">{{robot.status}}</span>
                       </p>
                     </div>
                     <div class="col" style="text-align: right;">
-                      <img height="50" src="https://cdn1.iconfinder.com/data/icons/robots-avatars-set/354/Robot_chatbot___robot_robo_chatbot_digital_chat_bot-512.png">
+                      <img height="50" src="robot-icon.png">
                     </div>
                   </div> 
                   <div style="margin-top: 20px;">
-                    <button type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-                  </div>
-                  <div style="text-align: left; display: none;">
-                    <button type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
-                  </div>
-                </div>
-              </div>
-              <div class="card gray-hover" v-bind:class="[selectedRobotIndex === 1 ? 'active' : '']" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(1)">
-                <div class="card-body">
-                  <div class="row align-items-center">
-                    <div class="col">
-                      
-                      <!-- Title -->
-                      <h6 class="text-uppercase mb-2 text-left" style="color: rgb(128, 255, 0); letter-spacing: .08em;">
-                        Robot 2
-                      </h6>
-  
-                      <p class="text-left" style="margin-bottom: 0;">
-                        <span style="color: #95aac9;">Status: </span>
-                        <span class="text-success">Available</span>
-                      </p>
-                    </div>
-                    <div class="col" style="text-align: right;">
-                      <img height="50" src="https://cdn1.iconfinder.com/data/icons/robots-avatars-set/354/Robot_chatbot___robot_robo_chatbot_digital_chat_bot-512.png">
-                    </div>
-                  </div> 
-                  <div style="margin-top: 20px;">
-                    <button type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-                  </div>
-                  <div style="text-align: left; display: none;">
-                    <button type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-outline-primary" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-outline-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
                   </div>
                 </div>
               </div>

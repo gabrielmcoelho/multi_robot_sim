@@ -237,11 +237,16 @@ NAV2D.Navigator = function(options) {
     stage = that.rootObject.getStage();
   }
 
+  var fillColor = createjs.Graphics.getRGB(255, 128, 0, 0.66);
+  if(index === 1) {
+    fillColor = createjs.Graphics.getRGB(128, 255, 0, 0.66);
+  }
+
   // marker for the robot
   var robotMarker = new ROS2D.NavigationArrow({
     size : 25,
     strokeSize : 1,
-    fillColor : createjs.Graphics.getRGB(255, 128, 0, 0.66),
+    fillColor : fillColor,
     pulse : true
   });
   // wait for a pose to come in first
@@ -430,9 +435,9 @@ NAV2D.OccupancyGridClientNav = function(options) {
   this.rootObject = options.rootObject || new createjs.Container();
   this.viewer = options.viewer;
   this.withOrientation = options.withOrientation || false;
+  that.robotColors = options.robotColors
 
-  this.navigator1 = null;
-  this.navigator2 = null;
+  this.robots = [];
 
   // setup a client to get the map
   var client = new ROS2D.OccupancyGridClient({
@@ -444,9 +449,9 @@ NAV2D.OccupancyGridClientNav = function(options) {
   client.on('change', function() {
     // create one navigator for each robot
     if(typeof that.serverName === 'object' && that.serverName != null) {
-      var navigatorKey = 'navigator';
       for(var i=0; i<that.serverName.length; i++) {
-        that[navigatorKey+(i+1)] = new NAV2D.Navigator({
+        that.robots.push({});
+        that.robots[i].navigator = new NAV2D.Navigator({
           ros : that.ros,
           serverName : that.serverName[i],
           actionName : that.actionName,
@@ -456,6 +461,8 @@ NAV2D.OccupancyGridClientNav = function(options) {
           poseMessageType: that.poseMessageType,
           index: i
         });
+        that.robots[i].color = that.robotColors[i];
+        that.robots[i].status = 'available';
       }
     }
     // scale the viewer to fit the map
