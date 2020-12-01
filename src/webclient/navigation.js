@@ -131,7 +131,6 @@ NAV2D.Navigator = function(options) {
       that.rootObject.addChild(goalMarker);
     } 
 
-    console.warn(goal);
     goal.send();
 
     // handle goal result

@@ -103,7 +103,7 @@
           this.nav.robots[index].navigator.stopAllRobotActions();
         },
         debug: function() {
-          console.log(this)
+          console.log(this);
         },
         generateOccurrence: function() {
           // report ocurrence on the interface
@@ -185,7 +185,7 @@
     // randomly generate occurrences
     window.setInterval(function() {
       var fakeChanceOfOccurrence = Math.random();
-      if(fakeChanceOfOccurrence < 0.01) {
+      if(fakeChanceOfOccurrence < 0.9) {
         app.generateOccurrence();
       }
     }, 5000);
@@ -223,9 +223,8 @@
               </div>
               <div id="nav" class="d-inline-block"></div>
               <div style="height: 0; position: relative; bottom: 250px; text-align: left; margin-left: 42px;">
-                <p style="font-weight: bold; font-size: 14px; user-select: none;">Actions</h6>
                 <div>
-                  <button :disabled='this.occurrences.length === 0' type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
+                  <button v-if="this.occurrences.length > 0" type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
                 </div>
               </div>
             </div>
