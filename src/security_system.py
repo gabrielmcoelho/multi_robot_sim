@@ -21,20 +21,25 @@ class ActionServerController(object):
         self.action_server = actionlib.SimpleActionServer(client_server_name, RobotPatrolAction, execute_cb=self.execute_cb, auto_start = False)
         self.action_server.start()
         self.result = RobotPatrolResult()
+        self.robot_number = robot_number
         print(client_server_name + ' server initialized!')
       
     def execute_cb(self, goal):
-        print('received goal!')
         self.waiting_response = True
         self.success = True
 
+        if(len(goal.patrol_poses.poses) == 0):
+            print('Robot ' + str(self.robot_number) + ' received action: Stop')
+        elif(len(goal.patrol_poses.poses) == 1):
+            print('Robot ' + str(self.robot_number) + ' received action: Investigate')
+        elif(len(goal.patrol_poses.poses) > 1):
+            print('Robot ' + str(self.robot_number) + ' received action: Patrol')
         self.robot.setGoal(goal.patrol_poses)
 
         while(True):
             if(self.waiting_response):
                 time.sleep(0.5)
                 if(self.action_server.is_new_goal_available()):
-                    print('chegou goal novooo')
                     self.action_server.set_aborted(self.result)
                     return
             else:
@@ -69,11 +74,9 @@ class RobotController(threading.Thread):
             if self.receive_goal:
                 self.receive_goal = False
 
-                print('waiting for /robot' + str(self.robot_number) + '/patrol server')
-
                 self.robot.wait_for_server()
 
-                print('sending patrol action to /robot' + str(self.robot_number) + '/patrol server')
+                print('sending action to /robot' + str(self.robot_number) + '/patrol server')
 
                 self.robot.send_goal(self.robotPatrolGoal, self.on_goal_result)
             else:
@@ -86,11 +89,11 @@ class RobotController(threading.Thread):
         self.receive_goal = True
     
     def on_goal_result(self, status, result):
-        print(str(self.robot_number) + ' finished its goal!')
+        print('Robot ' + str(self.robot_number) + ' finished its goal!')
         print('Goal status: ' + str(status))
-        print(str(self.robot_number) + ' is currently ' + result.status)
-        # If a client interface is provided an it has a method called "on_goal_finish", invoke it
-        if(self.clientInterface and callable(getattr(self.clientInterface, "on_goal_finish", None))):
+        print('Robot ' + str(self.robot_number) + ' is currently ' + result.status)
+        # If a client interface is provided an it has a method called 'on_goal_finish', invoke it
+        if(self.clientInterface and callable(getattr(self.clientInterface, 'on_goal_finish', None))):
             self.clientInterface.on_goal_finish(status, result)
 
 

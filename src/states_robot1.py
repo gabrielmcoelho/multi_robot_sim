@@ -229,9 +229,7 @@ class RobotPatrol(object):
         while(True):
             if self.waiting_for_result:
                 time.sleep(0.5)
-                print('esperando...')
                 if(self.patrolActionServer.is_new_goal_available()):
-                    print('chegou goal sim')
                     self.patrolActionServer.set_aborted(self.robotPatrolResult)
                     return
             else:

@@ -40,24 +40,24 @@
                 url: this.ws_address
             });
             this.ros.on('connection', () => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Connected!'
-                });
-                this.connected = true
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Connected to server!'
+              });
+              this.connected = true
             });
             this.ros.on('error', (error) => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Error: ' + error
-                });
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Error: ' + error
+              });
             });
             this.ros.on('close', () => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Disconnected!'
-                });
-                this.connected = false
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Disconnected!'
+              });
+              this.connected = false
             });
         },
         createViewer: function() {
@@ -108,6 +108,10 @@
         generateOccurrence: function() {
           // report ocurrence on the interface
           $('#alert-occurence').toast('show');
+          this.logs.unshift({
+            date: (new Date()).toTimeString(),
+            message: 'An occurrence has appeared on the map!'
+          });
 
           // select a fake location to put the occurrence
           var markerConfig = {
@@ -246,7 +250,7 @@
   
                       <p class="text-left" style="margin-bottom: 0; white-space: nowrap;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling'}">{{robot.status}}</span>
+                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling', 'text-secondary': robot.status === 'moving...'}">{{robot.status}}</span>
                       </p>
                     </div>
                     <div class="col" style="text-align: right;">
@@ -254,9 +258,8 @@
                     </div>
                   </div> 
                   <div style="margin-top: 20px;">
-                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-info" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-                    <button type="button" class="btn btn-danger" @click="stopAllRobotActions(selectedRobotIndex)">STOP</button>
-                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                    <button v-if="robot.status !== 'patrolling'" :disabled='selectedRobotIndex !== index' type="button" class="btn btn-success" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button v-if="robot.status !== 'available'" :disabled='selectedRobotIndex !== index' type="button" class="btn btn-danger" @click="stopAllRobotActions(selectedRobotIndex)">Stop</button>
                   </div>
                 </div>
               </div>
