@@ -145,12 +145,22 @@
           if(status === 'patrolling') {
             this.logs.unshift({
               date: (new Date()).toTimeString(),
-              message: 'Robot ' + (index+1) + ' received action: PATROL' 
+              message: 'Robot ' + (index+1) + ' is now patrolling' 
             });
           } else if(status === 'investigating') {
             this.logs.unshift({
               date: (new Date()).toTimeString(),
-              message: 'Robot ' + (index+1) + ' received action: INVESTIGATE'
+              message: 'Robot ' + (index+1) + ' is now investigating'
+            });
+          } else if (status === 'moving...') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Sending robot ' + (index+1) + ' to location marked on the map'
+            });
+          } else if (status === 'available') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' is now available'
             });
           }
           this.$forceUpdate()

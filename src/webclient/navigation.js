@@ -99,8 +99,8 @@ NAV2D.Navigator = function(options) {
   // setup the actionlib client
   var securityActionClient = new ROSLIB.ActionClient({
     ros : ros,
-    actionName : 'multi_robots_security_system/SecurityAction',
-    serverName : '/security_system'
+    actionName : 'multi_robots_security_system/RobotPatrolAction',
+    serverName : '/robot' + (index+1) + '/web'
   });
 
   /**
@@ -114,7 +114,6 @@ NAV2D.Navigator = function(options) {
     var goal = new ROSLIB.Goal({
       actionClient : securityActionClient,
       goalMessage : {
-          robotIndex: index,
           patrol_poses : {
             header : {
               frame_id : '/map'
@@ -124,24 +123,21 @@ NAV2D.Navigator = function(options) {
         }
     });
 
+    var goalMarker = null;
     // create a marker if action is 'investigate
     if(action === 'investigate') {
-      window.app.changeRobotStatus(index, 'investigating');
-      var goalMarker = that.nav.createMarker(poses[0]);
+      window.app.changeRobotStatus(index, 'moving...');
+      goalMarker = that.nav.createMarker(poses[0]);
       that.rootObject.addChild(goalMarker);
-    } else if(action === 'patrol'){
-      window.app.changeRobotStatus(index, 'patrolling');
-    } else {
-      window.app.changeRobotStatus(index, 'available');
-    }
+    } 
 
+    console.warn(goal);
     goal.send();
 
     // handle goal result
-    goal.on('result', function() {
-      console.warn('goal result')
-      that.rootObject.removeChild(goalMarker);
-      that.nav.robots[index].status = 'investigating'
+    goal.on('result', function(result) {
+      goal.status.status === 3 && window.app.changeRobotStatus(index, result.status);
+      goalMarker && that.rootObject.removeChild(goalMarker);
     });
   }
 

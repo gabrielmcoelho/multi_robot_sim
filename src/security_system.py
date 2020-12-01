@@ -1,41 +1,59 @@
 #! /usr/bin/env python
 
 import threading
-
 import time
-
 import rospy
-
 import actionlib
-
 import actionlib_tutorials.msg
 
+from actionlib_msgs.msg import GoalStatus
 from move_base_msgs.msg import MoveBaseAction
-from multi_robots_security_system.msg import SecurityAction, SecurityGoal, SecurityResult, RobotPatrolAction, RobotPatrolGoal, RobotPatrolResult
+from multi_robots_security_system.msg import RobotPatrolAction, RobotPatrolGoal, RobotPatrolResult
 
-robots_status = ['available', 'available'] 
+client_servers = ['/robot1/web', '/robot2/web'] 
+robot_servers = ['/robot1/patrol', '/robot2/patrol'] 
 
-class RobotClientController(object):
+# Provides an action server interface to interact with the client
+class ActionServerController(object):
     
-    securityResult = SecurityResult()
-    def __init__(self, robots):
-        print('server initialized!')
-        self.robots = robots
-        self._securityActionServer = actionlib.SimpleActionServer('/security_system', SecurityAction, execute_cb=self.execute_security_action, auto_start = False)
-        self._securityActionServer.start()
+    def __init__(self, robot, client_server_name, robot_number):
+        self.robot = robot
+        self.action_server = actionlib.SimpleActionServer(client_server_name, RobotPatrolAction, execute_cb=self.execute_cb, auto_start = False)
+        self.action_server.start()
+        self.result = RobotPatrolResult()
+        print(client_server_name + ' server initialized!')
       
-    def execute_security_action(self, goal):
-        if len(goal.patrol_poses.poses) > 0:
-            print('client requested patrol action')
+    def execute_cb(self, goal):
+        print('received goal!')
+        self.waiting_response = True
+        self.success = True
+
+        self.robot.setGoal(goal.patrol_poses)
+
+        while(True):
+            if(self.waiting_response):
+                time.sleep(0.5)
+                if(self.action_server.is_new_goal_available()):
+                    print('chegou goal novooo')
+                    self.action_server.set_aborted(self.result)
+                    return
+            else:
+                if(self.success):
+                    self.action_server.set_succeeded(self.result)
+                else:
+                    self.action_server.set_aborted(self.result)
+                return
+
+
+    def on_goal_finish(self, status, result):
+        self.waiting_response = False
+        self.result.status = result.status
+        if status == GoalStatus.SUCCEEDED:
+            self.success = True
         else:
-            print('client requested robot to stop')
-        self.robots[goal.robotIndex].setGoal(goal.patrol_poses)
+            self.success = False
 
-    def on_goal_result(self, result, robotIndex):
-        self.securityResult.status = result.status
-        self.securityResult.robotIndex = robotIndex
-        # self._securityActionServer.set_succeeded(self.securityResult)
-
+# Communicates with the robot
 class RobotController(threading.Thread):
     receive_goal = False
     robotPatrolGoal = RobotPatrolGoal()
@@ -44,6 +62,7 @@ class RobotController(threading.Thread):
         self.robot_server_name = robot_server_name
         self.robot = actionlib.SimpleActionClient(robot_server_name, RobotPatrolAction)
         self.robot_number = robot_number
+        self.clientInterface = None
 
     def run(self):
         while(True):
@@ -67,19 +86,25 @@ class RobotController(threading.Thread):
         self.receive_goal = True
     
     def on_goal_result(self, status, result):
-        print('goal result!')
-        print(status)
-        print(result)
-        server.on_goal_result(result, self.robot_number - 1)
+        print(str(self.robot_number) + ' finished its goal!')
+        print('Goal status: ' + str(status))
+        print(str(self.robot_number) + ' is currently ' + result.status)
+        # If a client interface is provided an it has a method called "on_goal_finish", invoke it
+        if(self.clientInterface and callable(getattr(self.clientInterface, "on_goal_finish", None))):
+            self.clientInterface.on_goal_finish(status, result)
 
 
         
 if __name__ == '__main__':
     rospy.init_node('security_system')
     robots = []
-    for i in range(len(robots_status)):
-            robot_server_name = '/robot' + str(i+1) +'/patrol'
-            robots.append(RobotController(robot_server_name, i+1))
-            robots[i].start()
-    server = RobotClientController(robots)
+    clients = []
+    for i in range(len(robot_servers)):
+        robots.append(RobotController(robot_servers[i], i+1))
+        robots[i].start()
+    # The client interface implementation can be adjusted to your goals. 
+    # In this case, we are using one action server for each robot
+    for i in range(len(client_servers)):
+        clients.append(ActionServerController(robots[i], client_servers[i], i+1))
+        robots[i].clientInterface = clients[i]
     rospy.spin()

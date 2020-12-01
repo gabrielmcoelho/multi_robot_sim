@@ -171,7 +171,6 @@ class RobotPatrol(object):
     def __init__(self, availableState, patrollingState, goingToInvestigateState, investigatingState):
         self.status = 'available'
         self.patrolCoordinates = []
-        self.shouldPatrol = False
         self.patrolActionServer = actionlib.SimpleActionServer("robot1/patrol", RobotPatrolAction, execute_cb=self.execute_patrol, auto_start = False)
         self.patrolActionServer.start()
         self.availableState = availableState
@@ -182,6 +181,7 @@ class RobotPatrol(object):
 
 
     def execute_patrol(self, goal):
+        self.waiting_for_result = False
         print('recebi goal no state!')
         if(len(goal.patrol_poses.poses) == 0):
             data = None
@@ -189,6 +189,7 @@ class RobotPatrol(object):
         elif(len(goal.patrol_poses.poses) == 1):
             data = goal.patrol_poses
             nextAction = 'investigate'
+            self.waiting_for_result = True
         elif(len(goal.patrol_poses.poses) > 1):
             data = goal.patrol_poses
             nextAction = 'patrol'
@@ -197,28 +198,53 @@ class RobotPatrol(object):
             if(nextAction == None):
                 rospy.loginfo('robot1 is already available!')
             elif(nextAction == 'investigate'):
-                self.shouldPatrol = True
+                self.status = 'going_to_investigate'
                 self.availableState.goInvestigate(data)
             elif(nextAction == 'patrol'):
-                self.shouldPatrol = True
+                self.status = 'patrolling'
                 self.availableState.startPatrol(data)
         elif self.status == 'going_to_investigate':
+            if(nextAction == None):
+                self.status = 'available'
+            elif(nextAction == 'patrol'):
+                self.status = 'patrolling'
             self.goingToInvestigateState.cancelMovement(data, nextAction)
         elif self.status == 'investigating':
+            if(nextAction == None):
+                self.status = 'available'
+            elif(nextAction == 'investigate'):
+                self.status = 'going_to_investigate'
+            elif(nextAction == 'patrol'):
+                self.status = 'patrolling'
             self.investigatingState.stopInvestigating(data, nextAction)
         elif self.status == 'patrolling':
-            if(nextAction != 'patrolling'):
+            if(nextAction == None):
+                self.status = 'available'
                 self.patrollingState.stopPatrolling(data, nextAction)
-            else:
+            elif(nextAction == 'investigate'):
+                self.status = 'going_to_investigate'
+                self.patrollingState.stopPatrolling(data, nextAction)
+            elif(nextAction == 'patrol'):
                 rospy.loginfo('robot1 is already patrolling!')
+        while(True):
+            if self.waiting_for_result:
+                time.sleep(0.5)
+                print('esperando...')
+                if(self.patrolActionServer.is_new_goal_available()):
+                    print('chegou goal sim')
+                    self.patrolActionServer.set_aborted(self.robotPatrolResult)
+                    return
+            else:
+                self.robotPatrolResult.status = self.status
+                self.patrolActionServer.set_succeeded(self.robotPatrolResult)
+                return
 
 
         
 
     def setResult(self):
-        print('SET RESULT!!!!!!')
-        self.robotPatrolResult.status = 'investigating'
-        self.shouldPatrol = False
+        self.status = 'investigating'
+        self.waiting_for_result = False
 
     def setRobotStatus(self, status):
         self.status = status
