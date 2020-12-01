@@ -105,7 +105,7 @@
         debug: function() {
           console.log(this);
         },
-        generateOccurrence: function() {
+        occurrenceHandler: function(coordinates) {
           // report ocurrence on the interface
           $('#alert-occurence').toast('show');
           this.logs.unshift({
@@ -113,29 +113,30 @@
             message: 'An occurrence has appeared on the map!'
           });
 
-          // select a fake location to put the occurrence
+          // create marker to show where the occurrence is and put it on the map
           var markerConfig = {
             size : 15,
             strokeSize : 1,
             fillColor : createjs.Graphics.getRGB(255, 0, 0, 0.66),
             pulse : false
           };
-          var occurrenceCoordinates = [
-            {x: 62, y: 201},
-            {x: 299, y: 164},
-            {x: 508, y: 158},
-            {x: 313, y: 281}
-          ];
-          var locationIndex =  Math.floor(4 * Math.random());
-          var occurrenceLocation = occurrenceCoordinates[locationIndex];
 
-          // create marker to show where the occurrence is and put it on the map
-          var poseMessage = this.nav.createPoseMessage(occurrenceLocation.x, occurrenceLocation.y);
+          var poseMessage = this.nav.createPoseMessage(coordinates.x, coordinates.y);
           var occurrenceMark = this.nav.createMarker(poseMessage, markerConfig);
           this.nav.rootObject.addChild(occurrenceMark);
 
           // save a reference to the mark to make it possible to clear it later
           this.occurrences.push(occurrenceMark);
+        },
+        listenForOccurrences: function() {
+          var occurrenceListener = new ROSLIB.Topic({
+            ros : this.ros,
+            name : '/occurrence_report_channel',
+            messageType : 'multi_robots_security_system/Coordinate2D',
+            throttle_rate : 100
+          });
+
+          occurrenceListener.subscribe(this.occurrenceHandler);
         },
         clearAllOccurrences: function() {
           for(var i=0; i<this.occurrences.length; i++) {
@@ -182,14 +183,9 @@
     // Setup the nav client.
     app.createOccupancyGridClientNav();
 
-    // randomly generate occurrences
-    window.setInterval(function() {
-      var fakeChanceOfOccurrence = Math.random();
-      if(fakeChanceOfOccurrence < 0.9) {
-        app.generateOccurrence();
-      }
-    }, 5000);
-
+    // listen for occurrences that might come from the server
+    app.listenForOccurrences();
+   
     // initialize occurence alert container
     $('.toast').toast({
       autohide: false
