@@ -16,10 +16,10 @@ class Ocioso(smach.State):
     def __init__(self):      
         smach.State.__init__(self, outcomes=['indoInvestigar', 'patrulhando'], output_keys=['poseObj', 'index'])
         self.robot = None
-        self.action = None
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Ocioso')
+        self.action = None
         self.robot.setRobotStatus('available')
 
         while(True): 
@@ -47,13 +47,14 @@ class Ocioso(smach.State):
 # define state IndoInvestigar
 class IndoInvestigar(smach.State):
     def __init__(self):
-        smach.State.__init__(self, outcomes=['investigando', 'ocioso'], input_keys=['poseObj'], output_keys=['poseObj', 'index'])
+        smach.State.__init__(self, outcomes=['indoInvestigar', 'investigando', 'patrulhando', 'ocioso'], input_keys=['poseObj'], output_keys=['poseObj', 'index'])
         self.move_base = actionlib.SimpleActionClient('robot2/move_base', MoveBaseAction)
         self.new_goal = MoveBaseGoal()
         self.robot = None
 
     def execute(self, userdata):
         rospy.loginfo('Executing state IndoInvestigar')
+        self.action = None
         self.robot.setRobotStatus('going_to_investigate')
 
         self.new_goal.target_pose.header = userdata.poseObj.header
@@ -97,6 +98,7 @@ class Investigando(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Investigando')
+        self.action = None
         self.robot.setRobotStatus('investigating')
         
         while(True): 
@@ -127,18 +129,16 @@ class Patrulhando(smach.State):
         self.move_base = actionlib.SimpleActionClient('robot2/move_base', MoveBaseAction)
         self.new_goal = MoveBaseGoal()
         self.robot = None
-        self.action = None
 
     def execute(self, userdata):
         rospy.loginfo('Executing state Patrulhando')
+        self.action = None
         self.robot.setRobotStatus('patrolling')
 
         self.new_goal.target_pose.header = userdata.poseObj.header
         self.new_goal.target_pose.pose = userdata.poseObj.poses[userdata.index]
         
         self.move_base.wait_for_server()
-
-        print('goal has been sent!')
 
         self.move_base.send_goal(self.new_goal)
 
@@ -163,14 +163,12 @@ class Patrulhando(smach.State):
         self.action = nextAction
         
 
-class RobotPatrol():
+class RobotPatrol(object):
 
 
     def __init__(self, availableState, patrollingState, goingToInvestigateState, investigatingState):
         self.status = 'available'
         self.patrolCoordinates = []
-        self.shouldPatrol = False
-        print('ta aqui o server poha')
         self.patrolActionServer = actionlib.SimpleActionServer("robot2/patrol", RobotPatrolAction, execute_cb=self.execute_patrol, auto_start = False)
         self.patrolActionServer.start()
         self.availableState = availableState
@@ -181,12 +179,14 @@ class RobotPatrol():
 
 
     def execute_patrol(self, goal):
+        self.waiting_for_result = False
         if(len(goal.patrol_poses.poses) == 0):
             data = None
             nextAction = None
         elif(len(goal.patrol_poses.poses) == 1):
             data = goal.patrol_poses
             nextAction = 'investigate'
+            self.waiting_for_result = True
         elif(len(goal.patrol_poses.poses) > 1):
             data = goal.patrol_poses
             nextAction = 'patrol'
@@ -195,33 +195,51 @@ class RobotPatrol():
             if(nextAction == None):
                 rospy.loginfo('robot2 is already available!')
             elif(nextAction == 'investigate'):
-                self.shouldPatrol = True
+                self.status = 'going_to_investigate'
                 self.availableState.goInvestigate(data)
             elif(nextAction == 'patrol'):
-                self.shouldPatrol = True
+                self.status = 'patrolling'
                 self.availableState.startPatrol(data)
         elif self.status == 'going_to_investigate':
+            if(nextAction == None):
+                self.status = 'available'
+            elif(nextAction == 'patrol'):
+                self.status = 'patrolling'
             self.goingToInvestigateState.cancelMovement(data, nextAction)
         elif self.status == 'investigating':
+            if(nextAction == None):
+                self.status = 'available'
+            elif(nextAction == 'investigate'):
+                self.status = 'going_to_investigate'
+            elif(nextAction == 'patrol'):
+                self.status = 'patrolling'
             self.investigatingState.stopInvestigating(data, nextAction)
         elif self.status == 'patrolling':
-            if(nextAction == 'investigate'):
+            if(nextAction == None):
+                self.status = 'available'
                 self.patrollingState.stopPatrolling(data, nextAction)
-            else:
+            elif(nextAction == 'investigate'):
+                self.status = 'going_to_investigate'
+                self.patrollingState.stopPatrolling(data, nextAction)
+            elif(nextAction == 'patrol'):
                 rospy.loginfo('robot2 is already patrolling!')
-
         while(True):
-            if not self.shouldPatrol:
+            if self.waiting_for_result:
+                time.sleep(0.5)
+                if(self.patrolActionServer.is_new_goal_available()):
+                    self.patrolActionServer.set_aborted(self.robotPatrolResult)
+                    return
+            else:
+                self.robotPatrolResult.status = self.status
                 self.patrolActionServer.set_succeeded(self.robotPatrolResult)
                 return
-            else:
-                time.sleep(0.5)
+
 
         
 
     def setResult(self):
-        self.robotPatrolResult.status = 'investigating'
-        self.shouldPatrol = False
+        self.status = 'investigating'
+        self.waiting_for_result = False
 
     def setRobotStatus(self, status):
         self.status = status
@@ -253,7 +271,7 @@ def main():
                                transitions={'indoInvestigar': 'INDO_INVESTIGAR', 'patrulhando': 'PATRULHANDO'})
 
         smach.StateMachine.add('INDO_INVESTIGAR', goingToInvestigateState, 
-                               transitions={'investigando': 'INVESTIGANDO', 'ocioso': 'OCIOSO'},
+                               transitions={'indoInvestigar': 'INDO_INVESTIGAR', 'investigando': 'INVESTIGANDO', 'patrulhando': 'PATRULHANDO', 'ocioso': 'OCIOSO'},
                                remapping={'goal':'goal'})
 
         smach.StateMachine.add('INVESTIGANDO', investigatingState, 

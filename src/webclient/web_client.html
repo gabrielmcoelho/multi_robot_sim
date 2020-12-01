@@ -40,24 +40,24 @@
                 url: this.ws_address
             });
             this.ros.on('connection', () => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Connected!'
-                });
-                this.connected = true
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Connected to server!'
+              });
+              this.connected = true
             });
             this.ros.on('error', (error) => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Error: ' + error
-                });
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Error: ' + error
+              });
             });
             this.ros.on('close', () => {
-                this.logs.unshift({
-                  date: (new Date()).toTimeString(),
-                  message: 'Disconnected!'
-                });
-                this.connected = false
+              this.logs.unshift({
+                date: (new Date()).toTimeString(),
+                message: 'Disconnected!'
+              });
+              this.connected = false
             });
         },
         createViewer: function() {
@@ -97,14 +97,21 @@
           ]);
         },
         stopPatrol: function(index) {
-          this.nav.robots[index].stopPatrol();
+          // this.nav.robots[index].stopPatrol();
+        },
+        stopAllRobotActions: function(index) {
+          this.nav.robots[index].navigator.stopAllRobotActions();
         },
         debug: function() {
-          console.log(this)
+          console.log(this);
         },
         generateOccurrence: function() {
           // report ocurrence on the interface
           $('#alert-occurence').toast('show');
+          this.logs.unshift({
+            date: (new Date()).toTimeString(),
+            message: 'An occurrence has appeared on the map!'
+          });
 
           // select a fake location to put the occurrence
           var markerConfig = {
@@ -142,12 +149,22 @@
           if(status === 'patrolling') {
             this.logs.unshift({
               date: (new Date()).toTimeString(),
-              message: 'Robot ' + (index+1) + ' received action: PATROL' 
+              message: 'Robot ' + (index+1) + ' is now patrolling' 
             });
           } else if(status === 'investigating') {
             this.logs.unshift({
               date: (new Date()).toTimeString(),
-              message: 'Robot ' + (index+1) + ' received action: INVESTIGATE'
+              message: 'Robot ' + (index+1) + ' is now investigating'
+            });
+          } else if (status === 'moving...') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Sending robot ' + (index+1) + ' to location marked on the map'
+            });
+          } else if (status === 'available') {
+            this.logs.unshift({
+              date: (new Date()).toTimeString(),
+              message: 'Robot ' + (index+1) + ' is now available'
             });
           }
           this.$forceUpdate()
@@ -168,7 +185,7 @@
     // randomly generate occurrences
     window.setInterval(function() {
       var fakeChanceOfOccurrence = Math.random();
-      if(fakeChanceOfOccurrence < 0.01) {
+      if(fakeChanceOfOccurrence < 0.9) {
         app.generateOccurrence();
       }
     }, 5000);
@@ -206,9 +223,8 @@
               </div>
               <div id="nav" class="d-inline-block"></div>
               <div style="height: 0; position: relative; bottom: 250px; text-align: left; margin-left: 42px;">
-                <p style="font-weight: bold; font-size: 14px; user-select: none;">Actions</h6>
                 <div>
-                  <button :disabled='this.occurrences.length === 0' type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
+                  <button v-if="this.occurrences.length > 0" type="button" class="btn btn-outline-success" @click="clearAllOccurrences" style="width: 200px;">Clear all occurrences</button>
                 </div>
               </div>
             </div>
@@ -233,7 +249,7 @@
   
                       <p class="text-left" style="margin-bottom: 0; white-space: nowrap;">
                         <span style="color: #95aac9;">Status: </span>
-                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling'}">{{robot.status}}</span>
+                        <span style="text-transform: capitalize;" v-bind:class="{ 'text-success': robot.status === 'available', 'text-warning': robot.status === 'investigating', 'text-info': robot.status === 'patrolling', 'text-secondary': robot.status === 'moving...'}">{{robot.status}}</span>
                       </p>
                     </div>
                     <div class="col" style="text-align: right;">
@@ -241,8 +257,8 @@
                     </div>
                   </div> 
                   <div style="margin-top: 20px;">
-                    <button v-if="robot.status !== 'patrolling'" type="button" class="btn btn-info" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
-                    <button v-if="robot.status === 'patrolling'" type="button" class="btn btn-danger" @click="stopPatrol(selectedRobotIndex)">Stop patrol</button>
+                    <button v-if="robot.status !== 'patrolling'" :disabled='selectedRobotIndex !== index' type="button" class="btn btn-success" @click="startPatrol(selectedRobotIndex)">Start patrol</button>
+                    <button v-if="robot.status !== 'available'" :disabled='selectedRobotIndex !== index' type="button" class="btn btn-danger" @click="stopAllRobotActions(selectedRobotIndex)">Stop</button>
                   </div>
                 </div>
               </div>
