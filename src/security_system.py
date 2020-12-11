@@ -115,7 +115,7 @@ class OccurrenceController(threading.Thread):
 
         while not rospy.is_shutdown():
             occurrenceChance = random()
-            if(occurrenceChance < 0.1):
+            if(occurrenceChance < 0.05):
                 coordinateIndex = randint(0, 3)
                 msg = Coordinate2D()
                 msg.x = occurrenceCoordinates[coordinateIndex]['x']
