@@ -84,10 +84,10 @@
         },
         startPatrol: function(index) {
           index === 0 && this.nav.robots[0].navigator.startPatrol([
-            {x: 475, y: 154, theta: -0.9323139964404594}, 
+            {x: 465, y: 154, theta: -0.9323139964404594}, 
             {x: 393, y: 154, theta: -2.6841178056937682}, 
             {x: 393, y: 256, theta: 2.0243940229026687}, 
-            {x: 475, y: 256, theta: 0.6564111896256672}
+            {x: 465, y: 256, theta: 0.6564111896256672}
           ]);
           index === 1 && this.nav.robots[1].navigator.startPatrol([
             {x: 268, y: 117, theta: -1.3561322886524252}, 
@@ -226,13 +226,13 @@
             </div>
           </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4 margin-top-mobile">
           <div class="card" style="margin: 10px 0 10px 0; height: 100%;">
             <div class="card-header">
               <h4 class="card-header-title" style="user-select: none;">Robots</h4>
             </div>
             <div class="card-body text-center">
-              <p style="text-align: left;color: #bdbdbd;font-size: 14px;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
+              <p style="text-align: left;color: #bdbdbd;font-size: 14px; user-select: none;"><strong>Hint: </strong>select a robot by clicking its card. Then, click anywhere in the map to send the robot to investigate the location. You can also activate patrol mode on each robot separatly</p>
               <div v-if="nav.robots" v-for="(robot, index) in nav.robots" v-bind:class="[selectedRobotIndex === index ? 'active' : '']" class="card gray-hover" style="margin-bottom: 10px; cursor: pointer;" @click="selectRobot(index)">
                 <div class="card-body" style="user-select: none;">
                   <div class="row align-items-center">
@@ -266,9 +266,9 @@
           </div>
         </div>
       </div>
-      <div class="card" style="margin-top: 20px;">
+      <div class="card" style="margin-top: 20px; margin-bottom: 20px;">
         <div class="card-header">
-          <h4 class="card-header-title">Recent Activity</h4>
+          <h4 class="card-header-title" style="user-select: none;">Recent Activity</h4>
         </div>
         <div class="card-body" style="max-height: 200px;overflow: auto;">
           <p v-for="log of logs" style="font-size: 15px;"><span style="color: gray; font-size: 12px; position: relative; bottom: 2px;">{{ log.date }}</span> - {{ log.message }}</p>
