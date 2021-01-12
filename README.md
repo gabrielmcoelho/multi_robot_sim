@@ -66,3 +66,13 @@ Os seguintes passos devem ser seguidos para configurar o ambiente e executar o p
 	
 E, para finalizar, basta acessar o navegador no endereço http://localhost:8000/web_client.html
 
+Para mais informações sobre o projeto, ver [docs](https://github.com/gabrielmcoelho/multi_robots_security_system/tree/master/docs).
+
+### Simulações do sistema
+
+- Interface do cliente e ambiente de simulação
+
+https://www.youtube.com/watch?v=rAbernuTUeE&t=150s
+- Interface do cliente, logs do servidor e máquina de estado dos robôs
+
+https://www.youtube.com/watch?v=f260OQCfnkU&t=4s
